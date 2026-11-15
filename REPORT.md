@@ -100,3 +100,25 @@ npm run deploy
 - 未解決の問題なし。
 
 設定の参照: [Cloudflare公式 静的アセット設定](https://developers.cloudflare.com/workers/static-assets/binding/)、[HTMLルーティング](https://developers.cloudflare.com/workers/static-assets/routing/advanced/html-handling/)。
+
+## GitHubソース公開
+
+- リポジトリ: https://github.com/kyosuke25/race-log
+- 公開範囲: public
+- gh CLIの認証アカウント: `kyosuke25`
+- サイトの再デプロイ・変更は実施していない。
+
+### 公開前の秘密情報スキャン
+
+隠しファイル、Git管理外ファイル、依存関係、Git内部を含むツリー全体の1,879ファイル（論理サイズ596,581,982 bytes）と、既存コミット履歴内の全14 blobを検査した。APIキー、各種トークン、JWT、秘密鍵、パスワードやクライアントシークレットの代入、認証情報入りURLのパターン、および `.env`・認証ファイル名を確認。読み取りエラーなし。
+
+検出は `node_modules/` 内の16箇所のみ。Playwright/Undiciのサンプル用パスワード・プロキシURL、Wranglerのドキュメント例や設定フィールド、Miniflareのローカル開発用同梱TLS鍵など。ユーザーの実認証情報は見つからず、コミット済みファイルと履歴はパターン検出なし。`.env` や個別の認証ファイルも見つからなかった。パターン検査による確認であり、未知の形式を含む秘密情報の完全な不存在を保証するものではない。
+
+除外対象:
+
+- `node_modules/`：検出箇所を含む依存関係全体。既存の `.gitignore` で除外済み。Git履歴にも含まれていない。
+- `.wrangler/`：ローカルのWrangler生成物。既存設定で除外済み。
+- 今後の混入防止として `.env`、`.env.*`（`.env.example` は除く）、`.dev.vars`、`.dev.vars.*`、`.npmrc`、`.netrc`、`*.pem`、`*.key`、`*.p12`、`*.pfx` を `.gitignore` に追加。現在これらに該当する実ファイルはない。
+- `public/data.json` は依頼どおり公開対象に含めた。
+
+公開ファイルの配置は `public/index.html`、`public/fukuoka-2026.html`、`public/data.json`、ルートの `wrangler.toml`。

@@ -3,3 +3,16 @@ node_modules/
 verification/*.png
 verification/*.html
 verification/deployed-data.json
+
+# Local credentials and environment settings
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+.npmrc
+.netrc
+*.pem
+*.key
+*.p12
+*.pfx
