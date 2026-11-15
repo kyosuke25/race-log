@@ -1,0 +1,21 @@
+HTTP/2 307 
+date: Sun, 15 Nov 2026 12:29:56 GMT
+content-length: 0
+location: /fukuoka-2026
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=uBeKSv38h72IaKh2L7WsrCtcIkwtzUPljrVVRL1FNxEtG%2BlkYdT8FSd%2F1OCC26RhZC0s%2FprdpeW8RDRMj0WN6Cwm8QKp3ydW1EF64U2Cf1wRG%2BbRVfDG3qsaFrgPmwJlCyNcFPXqYcNjYVtNSTtLI8SyyGi3hEoi"}]}
+nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+server: cloudflare
+cf-ray: a5ae43abbc07166d-NRT
+alt-svc: h3=":443"; ma=86400
+
+HTTP/2 200 
+date: Sun, 15 Nov 2026 12:29:56 GMT
+content-type: text/html
+cf-cache-status: HIT
+cache-control: public, max-age=0, must-revalidate
+nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=RKcCH4t5D%2Beo53MEIJkxLvrhHt51Zyq%2FtdbHEX%2BRKrXKO%2BUjZpZ%2FZDwvsWQpEFhe1i%2BZNuYX6Wz7reQWCz3gkS92GpqCIaW2rvhTbzw9vJgZdGN1u8MtnNf9%2BwlcjJTBK9NaEIc5IORGS3iG9Vx3WUH7%2FSRjqvox"}]}
+server: cloudflare
+cf-ray: a5ae43abfcd7166d-NRT
+alt-svc: h3=":443"; ma=86400
+
