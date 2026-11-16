@@ -139,3 +139,9 @@ npm run deploy
 再生成: `npm run build`
 
 個人アカウントへのデプロイ: `npx wrangler deploy --config wrangler.personal.toml --profile personal`
+
+デプロイ成功。Version ID: `4ad8c0bc-976c-46ae-9b1b-ddeac519bb77`。
+
+新規8ページをcurlで取得し、すべてHTTP 200かつ生成済みHTMLとバイト単位で一致することを確認。全URLと結果は `verification/training-http-status.txt` に保存。公開された両JSONも保存原本と一致。
+
+公開サイトに対する `VERIFY_URL=https://run.kyosuke.tokyo npm run verify:training` と `VERIFY_URL=https://run.kyosuke.tokyo npm run verify` は成功。未解決の問題なし。
