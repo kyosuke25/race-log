@@ -1,0 +1,10 @@
+name = "run-log"
+account_id = "3f60be7bb8bf976e3ab877257d25a8cd"
+compatibility_date = "2026-11-15"
+workers_dev = true
+
+routes = [{ pattern = "run.kyosuke.tokyo", custom_domain = true }]
+
+[assets]
+directory = "./public"
+html_handling = "auto-trailing-slash"
