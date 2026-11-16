@@ -6,33 +6,7 @@
     if (!response.ok) throw new Error('data.json: ' + response.status);
     const data = await response.json();
     if (typeof Chart === 'undefined') throw new Error('Chart.js unavailable');
-    Chart.defaults.font.family = 'system-ui, sans-serif';
-    Chart.defaults.color = '#596671';
-    const pace = seconds => {
-      const rounded = Math.round(seconds);
-      return `${Math.floor(rounded / 60)}:${String(rounded % 60).padStart(2, '0')}`;
-    };
-    const draw = (id, datasets, {unit, reverse = false, paceAxis = false, category = false, labels} = {}) => {
-      new Chart(document.getElementById(id), {
-        type: 'line',
-        data: {labels, datasets: datasets.map(dataset => ({borderWidth: 2, pointRadius: 0, pointHitRadius: 12, tension: 0, ...dataset}))},
-        options: {
-          responsive: true, maintainAspectRatio: false, animation: false,
-          interaction: {mode: 'index', intersect: false},
-          plugins: {
-            legend: {display: datasets.length > 1, position: 'bottom', labels: {usePointStyle: true}},
-            tooltip: {callbacks: {
-              title: items => `${items[0].label} km`,
-              label: context => `${context.dataset.label}: ${paceAxis ? pace(context.parsed.y) : context.parsed.y} ${unit}`
-            }}
-          },
-          scales: {
-            x: {type: category ? 'category' : 'linear', title: {display: true, text: category ? '区間（km）' : '距離（km）'}, grid: {display: false}, ticks: {maxTicksLimit: 7, maxRotation: 0}},
-            y: {reverse, title: {display: true, text: unit}, grid: {color: '#edf0f2'}, ticks: paceAxis ? {callback: pace} : {}}
-          }
-        }
-      });
-    };
+    const {draw} = window.RaceCharts;
     const series = (key, label, color) => ({label, data: data.km.map(k => ({x: k.km, y: k[key]})), borderColor: color});
     draw('pace', [series('pace_s', 'ペース', '#286287')], {unit: '分:秒 /km', reverse: true, paceAxis: true});
     draw('elevation', [{label: '標高', data: data.elevation.map(([x,y]) => ({x,y})), borderColor: '#698267', backgroundColor: '#69826730', fill: 'origin'}], {unit: 'm'});

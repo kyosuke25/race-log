@@ -122,3 +122,20 @@ npm run deploy
 - `public/data.json` は依頼どおり公開対象に含めた。
 
 公開ファイルの配置は `public/index.html`、`public/fukuoka-2026.html`、`public/data.json`、ルートの `wrangler.toml`。
+
+## トレーニング記録の追加（2026-11-16）
+
+- 個人Cloudflareアカウントの `run-log`、カスタムドメイン `https://run.kyosuke.tokyo` に公開する構成。
+- `public/training-2026-11.json` と `public/comments.json` は指定URLから取得した原本を改変せず保存。
+- `/training/`、`/training/2026-11`、JSONのslugに対応する6個別ページを生成。レース行は既存の `/fukuoka-2026` にリンク。
+- 月次サマリ・週別距離・日別距離はmonthブロックを使用。週別・日別距離はレース込み。
+- セッション平均ペースは `elapsed_s / distance_m * 1000` を秒/kmとして算出し、秒に丸めて表示。
+- 100mバケットのグラフと高低図は元JSONをfetchし、距離mをkmに換算して描画。元の計測値は変更していない。
+- コメントはsummary/good/improveをHTMLエスケープしてそのまま掲載。
+- `public/chart-utils.js` に既存レース記事とトレーニングページの共通描画処理を配置。`public/training-charts.js` を追加。
+- `npm run verify:training` で全6セッション・36グラフ、月次グラフ、コメント、端数行、経過時間ペース、スマホ表示を照合済み。`npm run verify` で既存レース記事も検証済み。
+- 変更ファイルの秘密情報パターン検査は検出なし。認証設定ファイルはコミット対象に含めない。
+
+再生成: `npm run build`
+
+個人アカウントへのデプロイ: `npx wrangler deploy --config wrangler.personal.toml --profile personal`

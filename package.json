@@ -6,7 +6,8 @@
     "build": "node scripts/build.mjs",
     "deploy": "npm run build && wrangler deploy",
     "dev": "wrangler dev",
-    "verify": "node scripts/verify.cjs"
+    "verify": "node scripts/verify.cjs",
+    "verify:training": "node scripts/verify-training.cjs"
   },
   "keywords": [],
   "author": "",
