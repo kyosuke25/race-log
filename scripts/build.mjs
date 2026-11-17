@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
 const d = JSON.parse(await readFile(new URL('../public/data.json', import.meta.url), 'utf8'));
 const raceSession = d.session;
 const m = {...d.meta, ...raceSession.race,
@@ -10,7 +10,7 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>'
 const shell = (title, body, charts = false) => `<!doctype html>
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} | Pace Notes</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;1,700&family=Noto+Sans+JP:wght@400;500;700&display=swap"><link rel="stylesheet" href="/style.css">${charts ? `<script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script><script defer src="/chart-utils.js"></script><script defer src="/${charts === true ? 'charts.js' : charts}"></script>` : ''}</head><body><header class="site-header"><div class="bar"><a class="brand" href="/">Pace<span>Notes</span></a><nav aria-label="サイト"><a href="/">レース</a><a href="/training/">トレーニング</a></nav></div></header><main>${body}</main><footer class="site-footer">Pace Notes — 走った距離と数字の記録</footer></body></html>\n`;
 const date = m.date.replace(/（.*）/, '');
-await writeFile(new URL('../public/index.html', import.meta.url), shell('ホーム', `<div class="hero"><p class="eyebrow">Running log</p><h1>Pace Notes</h1><p class="lede">走った距離と数字の記録</p></div><section><h2>レース</h2><ul class="posts"><li><a href="fukuoka-2026.html">${esc(m.race)} ― ${esc(date)} / ネット ${esc(m.net)}</a></li></ul></section><section><h2>トレーニング</h2><p class="link-card"><a href="/training/">トレーニング記録</a></p></section>`));
+
 const shoeBar = (total, target) => `<span class="shoe-bar" role="img" aria-label="目標の${Math.round(total / target * 100)}%"><span style="width:${Math.min(100, total / target * 100).toFixed(1)}%"></span></span>`;
 const shoeMetric = (total, target) => `<div><dt>シューズ累計／目標</dt><dd>${total.toFixed(1)} km ／ ${esc(target)} km ${shoeBar(total, target)}</dd></div>`;
 const metric = (label, value) => `<div><dt>${label}</dt><dd>${esc(value)}</dd></div>`;
@@ -59,11 +59,14 @@ ${sessionDetails(raceSession)}
 <div class="small-charts tiles">${chart('pace','ペース（/km）')}${chart('elevation','標高（m）')}${chart('hr','心拍（bpm）')}${chart('cadence','ケイデンス（spm）')}${chart('power','パワー（W）')}${chart('stance','接地時間（ms）')}</div>
 <figure class="yoy"><h3>前年比較（/km）</h3><p class="comparison">2025年 ${esc(d.yoy5k.total2025)} → 2026年 ${esc(d.yoy5k.total2026)}</p><div class="chart"><canvas id="yoy" role="img" aria-label="前年との5km区間平均ペース比較"></canvas></div></figure>
 </section></article>`, true));
-console.log('Generated index.html and fukuoka-2026.html from public/data.json');
+console.log('Generated fukuoka-2026.html from public/data.json');
 
-const training = JSON.parse(await readFile(new URL('../public/training-2026-11.json', import.meta.url), 'utf8'));
+const trainingFiles = (await readdir(new URL('../public/', import.meta.url)))
+  .filter(name => /^training-\d{4}-\d{2}\.json$/.test(name)).sort().reverse();
+if (!trainingFiles.length) throw new Error('No training month data found');
+const trainingMonths = await Promise.all(trainingFiles.map(async name =>
+  JSON.parse(await readFile(new URL(`../public/${name}`, import.meta.url), 'utf8'))));
 const comments = JSON.parse(await readFile(new URL('../public/comments.json', import.meta.url), 'utf8')).comments;
-const month = training.month;
 const km1 = meters => `${(Math.round(meters / 100) / 10).toFixed(1)} km`; // 小数第一位（第二位で四捨五入）
 const distance = km1;
 const mdw = (date, weekday) => `${Number(date.slice(5, 7))}/${Number(date.slice(8))}（${weekday}）`;
@@ -76,15 +79,23 @@ const duration = seconds => {
 const avgPace = session => `${paceText(session.elapsed_s / session.distance_m * 1000)} /km`;
 const trainingDir = new URL('../public/training/', import.meta.url);
 await mkdir(trainingDir, {recursive: true});
+await writeFile(new URL('index.html', trainingDir), shell('トレーニング記録', `<h1>トレーニング記録</h1><ul class="posts">${trainingMonths.map(({month}) => `<li><a href="/training/${esc(month.ym)}">${esc(month.ym)}</a></li>`).join('')}</ul>`));
+for (const training of trainingMonths) {
+const month = training.month;
 const back = `<p class="breadcrumb"><a href="/training/${esc(month.ym)}">${esc(month.ym)}</a></p>`;
 const status = '<p id="chart-status" role="status">グラフを読み込んでいます。</p><noscript><p>グラフの表示にはJavaScriptが必要です。</p></noscript>';
-await writeFile(new URL('index.html', trainingDir), shell('トレーニング記録', `<h1>トレーニング記録</h1><ul class="posts"><li><a href="/training/${esc(month.ym)}">${esc(month.ym)}</a></li></ul>`));
+
 const rows = [...training.sessions.map(s => ({...s, href: `/training/${s.slug}`})), {...month.race, href: month.race.link}].sort((a,b) => a.date.localeCompare(b.date));
+const monthSummary = `<section><h2>サマリ</h2><dl class="metrics month-summary">${metric('練習セッション数',`${month.training_sessions} 件`)}${metric('練習距離',km1(month.training_km*1000))}${metric('累計時間',duration(month.training_time_s))}${metric('総距離',km1(month.total_km_with_race*1000))}</dl></section>`;
+const sessionTable = `<section><h2>セッション一覧</h2><div class="table-scroll" tabindex="0" role="region" aria-label="セッション一覧"><table class="session-table"><thead><tr>${['日付','開始','距離','経過時間','平均ペース','平均心拍','シューズ'].map(t=>`<th scope="col">${t}</th>`).join('')}</tr></thead><tbody>${rows.map(s=>`<tr><th scope="row"><a href="${esc(s.href)}">${esc(mdw(s.date, s.weekday))}</a></th><td>${esc(s.start_time ?? '—')}</td><td>${distance(s.distance_m)}</td><td>${duration(s.elapsed_s)}</td><td>${avgPace(s)}</td><td>${s.avg_hr == null ? '—' : `${esc(s.avg_hr)} bpm`}</td><td>${esc(s.shoe ?? '—')}</td></tr>`).join('')}</tbody></table></div><p class="note">距離・経過時間はウォッチ計測。平均ペースは経過時間基準。</p></section>`;
+if (training === trainingMonths[0]) {
+await writeFile(new URL('../public/index.html', import.meta.url), shell('ホーム', `<div class="hero"><p class="eyebrow">Running log</p><h1>Pace Notes</h1><p class="lede">走った距離と数字の記録</p></div><section><h2>レース</h2><ul class="posts"><li><a href="fukuoka-2026.html">${esc(m.race)} ― ${esc(date)} / ネット ${esc(m.net)}</a></li></ul></section><section><h2>トレーニング記録</h2><h3>${esc(month.ym)}</h3>${monthSummary}${sessionTable}<p class="link-card"><a href="/training/${esc(month.ym)}">${esc(month.ym)}の月次ページ</a> · <a href="/training/">過去月のトレーニング記録</a></p></section>`));
+}
 await writeFile(new URL(`${month.ym}.html`, trainingDir), shell(`${month.ym} トレーニング記録`, `<article data-training-month="${esc(month.ym)}">
 <h1>${esc(month.ym)} トレーニング記録</h1>
-<section><h2>サマリ</h2><dl class="metrics month-summary">${metric('練習セッション数',`${month.training_sessions} 件`)}${metric('練習距離',km1(month.training_km*1000))}${metric('累計時間',duration(month.training_time_s))}${metric('総距離',km1(month.total_km_with_race*1000))}</dl></section>
+${monthSummary}
 <section><h2>距離</h2>${status}<div class="month-charts">${chart('weekly','週別距離（km）')}${chart('daily','日別距離（km）')}</div></section>
-<section><h2>セッション一覧</h2><div class="table-scroll" tabindex="0" role="region" aria-label="セッション一覧"><table class="session-table"><thead><tr>${['日付','開始','距離','経過時間','平均ペース','平均心拍','シューズ'].map(t=>`<th scope="col">${t}</th>`).join('')}</tr></thead><tbody>${rows.map(s=>`<tr><th scope="row"><a href="${esc(s.href)}">${esc(mdw(s.date, s.weekday))}</a></th><td>${esc(s.start_time ?? '—')}</td><td>${distance(s.distance_m)}</td><td>${duration(s.elapsed_s)}</td><td>${avgPace(s)}</td><td>${s.avg_hr == null ? '—' : `${esc(s.avg_hr)} bpm`}</td><td>${esc(s.shoe ?? '—')}</td></tr>`).join('')}</tbody></table></div><p class="note">距離・経過時間はウォッチ計測。平均ペースは経過時間基準。</p></section>
+${sessionTable}
 <section><h2>シューズ</h2><div class="table-scroll" tabindex="0" role="region" aria-label="シューズ"><table class="shoe-table"><thead><tr>${['シューズ','累計距離','目標距離','達成率','時点'].map(t=>`<th scope="col">${t}</th>`).join('')}</tr></thead><tbody>${[...new Map([...training.sessions, month.race].sort((a,b)=>a.date.localeCompare(b.date)).map(s => [s.shoe, s])).values()].sort((a,b) => b.shoe_total_km - a.shoe_total_km).map(s=>`<tr><th scope="row">${esc(s.shoe)}</th><td>${s.shoe_total_km.toFixed(1)} km</td><td>${esc(s.shoe_target_km)} km</td><td>${Math.round(s.shoe_total_km / s.shoe_target_km * 100)}% ${shoeBar(s.shoe_total_km, s.shoe_target_km)}</td><td>${esc(mdw(s.date, s.weekday))}</td></tr>`).join('')}</tbody></table></div><p class="note">各シューズの最後の練習・レース時点の値。</p></section></article>`, 'training-charts.js'));
 for (const session of training.sessions) {
   if (!/^[a-z0-9-]+$/.test(session.slug)) throw new Error('Invalid session slug');
@@ -102,3 +113,4 @@ ${sessionDetails(session)}
 <section class="manager-comments"><h2>マネージャーのコメント</h2><h3>総評</h3><p class="comment-summary">${esc(c.summary)}</p><h3>良かった点</h3><div class="comment-good">${commentList(c.good)}</div><h3>改善点</h3><div class="comment-improve">${commentList(c.improve)}</div></section></article>`, 'training-charts.js'));
 }
 console.log(`Generated training index, ${month.ym} and ${training.sessions.length} session pages`);
+}
