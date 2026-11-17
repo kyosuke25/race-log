@@ -11,6 +11,8 @@
   "avg_cadence_spm": 175.8,
   "calories_kcal": 2816,
   "shoes": "asics Magic Speed 5",
+  "shoe_total_km": 79.6,
+  "shoe_target_km": 700,
   "watch": "Amazfit Balance 3",
   "note": "スプリット・グラフはウォッチ（GPS）計測ベース。公式記録はネットタイム。"
  },

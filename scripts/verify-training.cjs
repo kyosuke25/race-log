@@ -21,6 +21,7 @@ const fs=require('node:fs');
  assert.equal(await page.locator('.session-table a[href="/fukuoka-2026"]').count(),1);
  assert.equal(await page.locator('.shoe-table tbody tr').count(),3);
  assert.match(await page.locator('.shoe-table').innerText(),/adidas Hyperboost\s+111.2 km\s+700 km/);
+ assert.match(await page.locator(".shoe-table").innerText(),/asics Magic Speed 5\s+79.6 km\s+700 km/);
  {const c=await chart('weekly');assert.equal(c.type,'bar');assert.deepEqual(c.data[0],Object.entries(d.month.weekly_m).sort(([a],[b])=>a.localeCompare(b)).map(([,m])=>m/1000));}
  {const c=await chart('daily');assert.equal(c.data[0].length,30);assert.deepEqual(c.data[0].filter(v=>v>0),Object.entries(d.month.daily_m).sort(([a],[b])=>a.localeCompare(b)).map(([,m])=>m/1000));}
  await noOverflow();await page.screenshot({path:'verification/training-month-375.png',fullPage:true});
