@@ -25,9 +25,8 @@ await writeFile(new URL('../public/fukuoka-2026.html', import.meta.url), shell(m
 <dl class="gear">${metric('シューズ',m.shoes)}${shoeMetric(m.shoe_total_km, m.shoe_target_km)}${metric('ウォッチ',m.watch)}</dl>
 <p class="note">スプリットとグラフはウォッチのGPS計測ベース。タイムは公式ネット。</p></section>
 <section aria-labelledby="graphs"><h2 id="graphs">グラフ</h2><p id="chart-status" role="status">グラフを読み込んでいます。</p><noscript><p>グラフの表示にはJavaScriptが必要です。<a href="data.json">計測データ</a></p></noscript>
-${chart('pace','ペース推移（/km）')}${chart('elevation','高低図（m）')}${chart('hr','心拍推移（bpm）')}
-<div class="small-charts">${chart('cadence','ケイデンス（spm）')}${chart('power','パワー（W）')}${chart('stance','接地時間（ms）')}</div>
-<figure><h3>前年比較（/km）</h3><p class="comparison">2025年 ${esc(d.yoy5k.total2025)} → 2026年 ${esc(d.yoy5k.total2026)}</p><div class="chart"><canvas id="yoy" role="img" aria-label="前年との5km区間平均ペース比較"></canvas></div></figure>
+<div class="small-charts tiles">${chart('pace','ペース（/km）')}${chart('elevation','標高（m）')}${chart('hr','心拍（bpm）')}${chart('cadence','ケイデンス（spm）')}${chart('power','パワー（W）')}${chart('stance','接地時間（ms）')}</div>
+<figure class="yoy"><h3>前年比較（/km）</h3><p class="comparison">2025年 ${esc(d.yoy5k.total2025)} → 2026年 ${esc(d.yoy5k.total2026)}</p><div class="chart"><canvas id="yoy" role="img" aria-label="前年との5km区間平均ペース比較"></canvas></div></figure>
 </section></article>`, true));
 console.log('Generated index.html and fukuoka-2026.html from public/data.json');
 
@@ -55,9 +54,9 @@ const status = '<p id="chart-status" role="status">グラフを読み込んで�
 await writeFile(new URL('index.html', trainingDir), shell('トレーニング記録', `<h1>トレーニング記録</h1><ul class="posts"><li><a href="/training/${esc(month.ym)}">${esc(month.ym)}</a></li></ul>`));
 const rows = [...training.sessions.map(s => ({...s, href: `/training/${s.slug}`})), {...month.race, shoe: m.shoes, href: month.race.link}].sort((a,b) => a.date.localeCompare(b.date));
 await writeFile(new URL(`${month.ym}.html`, trainingDir), shell(`${month.ym} トレーニング記録`, `<article data-training-month="${esc(month.ym)}">
-<h1>${esc(month.ym)} トレーニング記録</h1><p class="date">${esc(month.through)} まで</p>
+<h1>${esc(month.ym)} トレーニング記録</h1>
 <section><h2>サマリ</h2><dl class="metrics month-summary">${metric('練習セッション数',`${month.training_sessions} 件`)}${metric('練習距離',km1(month.training_km*1000))}${metric('累計時間',duration(month.training_time_s))}${metric('レース込み総距離',km1(month.total_km_with_race*1000))}</dl></section>
-<section><h2>距離</h2><p class="note">レースを含む</p>${status}<div class="month-charts">${chart('weekly','週別距離（km）')}${chart('daily','日別距離（km）')}</div></section>
+<section><h2>距離</h2>${status}<div class="month-charts">${chart('weekly','週別距離（km）')}${chart('daily','日別距離（km）')}</div></section>
 <section><h2>セッション一覧</h2><div class="table-scroll" tabindex="0" role="region" aria-label="セッション一覧"><table class="session-table"><thead><tr>${['日付','距離','経過時間','平均ペース','平均心拍','シューズ'].map(t=>`<th scope="col">${t}</th>`).join('')}</tr></thead><tbody>${rows.map(s=>`<tr><th scope="row"><a href="${esc(s.href)}">${esc(mdw(s.date, s.weekday))}</a></th><td>${distance(s.distance_m)}</td><td>${duration(s.elapsed_s)}</td><td>${avgPace(s)}</td><td>${s.avg_hr == null ? '—' : `${esc(s.avg_hr)} bpm`}</td><td>${esc(s.shoe ?? '—')}</td></tr>`).join('')}</tbody></table></div><p class="note">距離・経過時間はウォッチ計測。平均ペースは経過時間基準。</p></section>
 <section><h2>シューズ</h2><div class="table-scroll" tabindex="0" role="region" aria-label="シューズ"><table class="shoe-table"><thead><tr>${['シューズ','累計距離','目標距離','達成率','時点'].map(t=>`<th scope="col">${t}</th>`).join('')}</tr></thead><tbody>${[...new Map([...training.sessions, {...month.race, shoe: m.shoes, shoe_total_km: m.shoe_total_km, shoe_target_km: m.shoe_target_km}].sort((a,b)=>a.date.localeCompare(b.date)).map(s => [s.shoe, s])).values()].sort((a,b) => b.shoe_total_km - a.shoe_total_km).map(s=>`<tr><th scope="row">${esc(s.shoe)}</th><td>${s.shoe_total_km.toFixed(1)} km</td><td>${esc(s.shoe_target_km)} km</td><td>${Math.round(s.shoe_total_km / s.shoe_target_km * 100)}% ${shoeBar(s.shoe_total_km, s.shoe_target_km)}</td><td>${esc(mdw(s.date, s.weekday))}</td></tr>`).join('')}</tbody></table></div><p class="note">各シューズの最後の練習・レース時点の値。</p></section></article>`, 'training-charts.js'));
 for (const session of training.sessions) {
