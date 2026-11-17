@@ -7,7 +7,7 @@ const shell = (title, body, charts = false) => `<!doctype html>
 const date = m.date.replace(/（.*）/, '');
 await writeFile(new URL('../public/index.html', import.meta.url), shell('ホーム', `<div class="hero"><p class="eyebrow">Running log</p><h1>Pace Notes</h1><p class="lede">走った距離と数字の記録</p></div><section><h2>レース</h2><ul class="posts"><li><a href="fukuoka-2026.html">${esc(m.race)} ― ${esc(date)} / ネット ${esc(m.net)}</a></li></ul></section><section><h2>トレーニング</h2><p class="link-card"><a href="/training/">トレーニング記録</a></p></section>`));
 const shoeBar = (total, target) => `<span class="shoe-bar" role="img" aria-label="目標の${Math.round(total / target * 100)}%"><span style="width:${Math.min(100, total / target * 100).toFixed(1)}%"></span></span>`;
-const shoeMetric = (total, target) => `<div><dt>シューズ累計／目標（この日時点）</dt><dd>${total.toFixed(1)} km ／ ${esc(target)} km ${shoeBar(total, target)}</dd></div>`;
+const shoeMetric = (total, target) => `<div><dt>シューズ累計／目標</dt><dd>${total.toFixed(1)} km ／ ${esc(target)} km ${shoeBar(total, target)}</dd></div>`;
 const metric = (label, value) => `<div><dt>${label}</dt><dd>${esc(value)}</dd></div>`;
 const chart = (id, title) => `<figure><h3>${title}</h3><div class="chart"><canvas id="${id}" role="img" aria-label="${title}"></canvas></div></figure>`;
 await writeFile(new URL('../public/fukuoka-2026.html', import.meta.url), shell(m.race, `<article>
@@ -66,7 +66,7 @@ for (const session of training.sessions) {
   if (!c) throw new Error(`Missing comments: ${session.slug}`);
   const commentList = items => `<ul>${items.map(item=>`<li>${esc(item)}</li>`).join('')}</ul>`;
   await writeFile(new URL(`${session.slug}.html`, trainingDir), shell(jpDate(session.date, session.weekday), `${back}<article data-training-slug="${esc(session.slug)}">
-<h1>${esc(jpDate(session.date, session.weekday))}</h1><p class="date">${esc(session.label)} · ${esc(session.start_time)} 開始</p>
+<h1>${esc(jpDate(session.date, session.weekday))}</h1><p class="date">${esc(session.start_time)}スタート</p>
 <section><h2>結果</h2><dl class="times">${metric('距離',distance(session.distance_m))}${metric('経過時間',duration(session.elapsed_s))}${metric('平均ペース',avgPace(session))}</dl>
 <dl class="metrics">${metric('平均心拍',`${session.avg_hr} bpm`)}${metric('最大心拍',`${session.max_hr} bpm`)}${metric('カロリー',`${session.calories.toLocaleString('ja-JP')} kcal`)}${metric('獲得標高',`${session.ascent_m} m`)}</dl>
 <dl class="gear">${metric('シューズ',session.shoe)}${shoeMetric(session.shoe_total_km, session.shoe_target_km)}</dl><p class="note">平均ペースは経過時間基準。</p></section>
