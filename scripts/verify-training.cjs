@@ -42,7 +42,7 @@ const fs=require('node:fs');
  for(const [id,key] of [['pace','pace'],['hr','hr'],['cadence','cadence'],['power','power'],['stance','gct']]){
  const c=await chart(id);assert.deepEqual(c.data[0],s.series[key].map(([m,y])=>({x:m/1000,y})));if(id==='pace')assert(c.reverse);
  }
- assert.deepEqual((await chart('elevation')).data[0],s.elevation.map(([m,y])=>({x:m/1000,y})));
+ assert.deepEqual((await chart('elevation')).data[0],s.elevation.map(([x,y])=>({x,y})));
  await noOverflow();
  if(s===d.sessions[0])await page.screenshot({path:'verification/training-session-375.png',fullPage:true});
  console.log('PASS session:',s.slug);

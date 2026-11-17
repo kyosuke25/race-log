@@ -16,3 +16,7 @@ verification/deployed-data.json
 *.key
 *.p12
 *.pfx
+
+# Python prep cache
+__pycache__/
+*.pyc
