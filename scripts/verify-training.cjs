@@ -13,7 +13,7 @@ const fs=require('node:fs');
  const ready=()=>page.waitForFunction(()=>document.querySelector('#chart-status').hidden);
  const chart=id=>page.evaluate(id=>{const c=Chart.getChart(id);return {type:c.config.type,data:c.data.datasets.map(d=>d.data),reverse:c.options.scales.y.reverse};},id);
  const noOverflow=async()=>assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'page overflow');
- await visit('/');await page.locator('a[href="/training/"]').click();
+ await visit('/');await page.locator('main a[href="/training/"]').click();
  assert.equal(await page.locator('.posts li').count(),1);
  await page.locator('a[href="/training/2026-11"]').click();await ready();
  assert.deepEqual(await page.locator('.month-summary dd').allTextContents(),['6 件','36.7 km','4:04:21','79.15 km']);
