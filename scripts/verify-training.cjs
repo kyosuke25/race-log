@@ -16,12 +16,12 @@ const fs=require('node:fs');
  await visit('/');await page.locator('main a[href="/training/"]').click();
  assert.equal(await page.locator('.posts li').count(),1);
  await page.locator('a[href="/training/2026-11"]').click();await ready();
- assert.deepEqual(await page.locator('.month-summary dd').allTextContents(),['6 件','36.7 km','4:04:21','79.15 km']);
+ assert.deepEqual(await page.locator('.month-summary dd').allTextContents(),['6 件','36.7 km','4:04:21','79.2 km']);
  assert.equal(await page.locator('.session-table tbody tr').count(),7);
- assert.equal(await page.locator('.session-table a[href="/fukuoka-2026"]').count(),2);
- for(const [id,key] of [['weekly','weekly_m'],['daily','daily_m']]){
- const c=await chart(id);assert.equal(c.type,'bar');assert.deepEqual(c.data[0],Object.entries(d.month[key]).sort(([a],[b])=>a.localeCompare(b)).map(([,m])=>m/1000));
- }
+ assert.equal(await page.locator('.session-table a[href="/fukuoka-2026"]').count(),1);
+ assert.equal(await page.locator('.shoe-table tbody tr').count(),3);
+ {const c=await chart('weekly');assert.equal(c.type,'bar');assert.deepEqual(c.data[0],Object.entries(d.month.weekly_m).sort(([a],[b])=>a.localeCompare(b)).map(([,m])=>m/1000));}
+ {const c=await chart('daily');assert.equal(c.data[0].length,30);assert.deepEqual(c.data[0].filter(v=>v>0),Object.entries(d.month.daily_m).sort(([a],[b])=>a.localeCompare(b)).map(([,m])=>m/1000));}
  await noOverflow();await page.screenshot({path:'verification/training-month-375.png',fullPage:true});
  await page.setViewportSize({width:1280,height:900});await page.waitForTimeout(300);await noOverflow();
  await page.screenshot({path:'verification/training-month-1280.png',fullPage:true});
@@ -30,7 +30,7 @@ const fs=require('node:fs');
  await page.setViewportSize({width:375,height:900});await visit('/training/'+s.slug);await ready();
  assert.equal(await page.locator('canvas').count(),6);
  assert.equal(await page.locator('.times dd').nth(2).innerText(),pace(s.elapsed_s/s.distance_m*1000));
- assert.equal(await page.locator('.gear dd').innerText(),s.shoe);
+ assert.equal(await page.locator('.gear dd').first().innerText(),s.shoe);
  assert.equal(await page.locator('tbody tr').count(),s.splits.length);
  for(const [i,split] of s.splits.entries())if(split.partial_m!=null){const row=await page.locator('tbody tr').nth(i).innerText();assert(row.includes(`${split.partial_m} m`));assert(row.includes('端数'));}
  assert.equal(await page.locator('.comment-summary').textContent(),comments[s.slug].summary);

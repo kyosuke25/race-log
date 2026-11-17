@@ -86,6 +86,11 @@ figure:last-child{margin-bottom:0}
 .small-charts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;margin-bottom:32px}
 .small-charts figure{margin:0;background:var(--soft);border-radius:12px;padding:14px}
 .small-charts .chart{height:190px}
+.month-charts{display:grid;grid-template-columns:1fr 2fr;gap:24px}
+.month-charts figure{margin:0;background:var(--soft);border-radius:12px;padding:14px}
+.month-charts .chart{height:220px}
+.tiles{margin-bottom:0}
+.shoe-table{margin:0}
 .comparison{font-family:var(--num);font-size:1.3rem;font-weight:600;margin:-6px 0 12px}
 #chart-status{font-size:.9rem;color:var(--muted)}
 
@@ -105,7 +110,12 @@ figure:last-child{margin-bottom:0}
   section{padding:20px 16px;border-radius:12px;margin-top:20px}
   .times{grid-template-columns:1fr;gap:10px}
   .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .small-charts{grid-template-columns:1fr;gap:12px}
+  .small-charts,.month-charts{grid-template-columns:1fr;gap:12px}
+  .tiles{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .tiles figure{padding:10px 8px}
+  .tiles h3{font-size:.8rem}
+  .tiles .chart{height:150px}
   .chart{height:240px}
   th,td{padding:9px 7px;font-size:.85rem}
+  tbody th{white-space:normal}
 }
