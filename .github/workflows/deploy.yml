@@ -1,0 +1,32 @@
+# Required GitHub Secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID
+# Use the personal account (wrangler.personal.toml), never wrangler.toml.
+# Authentication is supplied via CI environment variables, not local credentials.
+name: Deploy personal Workers site
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: deploy-personal
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node scripts/build.mjs
+      - name: Deploy to personal account
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          # Fail if the configured secret points at a different account.
+          node -e 'const fs = require("node:fs"); const id = fs.readFileSync("wrangler.personal.toml", "utf8").match(/^account_id\s*=\s*"([^"]+)"/m)[1]; if (id !== process.env.CLOUDFLARE_ACCOUNT_ID) throw new Error("Personal account mismatch");'
+          npx --no-install wrangler deploy --config wrangler.personal.toml
