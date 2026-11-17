@@ -14,7 +14,9 @@
    "name": "福岡マラソン2026",
    "shoe": "asics Magic Speed 5",
    "shoe_total_km": 79.6,
-   "shoe_target_km": 700
+   "shoe_target_km": 700,
+   "avg_hr": 151,
+   "max_hr": 170
   },
   "total_km_with_race": 79.15,
   "daily_m": {
