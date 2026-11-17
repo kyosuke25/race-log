@@ -65,7 +65,7 @@ for (const session of training.sessions) {
   const c = comments[session.slug];
   if (!c) throw new Error(`Missing comments: ${session.slug}`);
   const commentList = items => `<ul>${items.map(item=>`<li>${esc(item)}</li>`).join('')}</ul>`;
-  await writeFile(new URL(`${session.slug}.html`, trainingDir), shell(`${session.date} ${session.label}`, `${back}<article data-training-slug="${esc(session.slug)}">
+  await writeFile(new URL(`${session.slug}.html`, trainingDir), shell(jpDate(session.date, session.weekday), `${back}<article data-training-slug="${esc(session.slug)}">
 <h1>${esc(jpDate(session.date, session.weekday))}</h1><p class="date">${esc(session.label)} · ${esc(session.start_time)} 開始</p>
 <section><h2>結果</h2><dl class="times">${metric('距離',distance(session.distance_m))}${metric('経過時間',duration(session.elapsed_s))}${metric('平均ペース',avgPace(session))}</dl>
 <dl class="metrics">${metric('平均心拍',`${session.avg_hr} bpm`)}${metric('最大心拍',`${session.max_hr} bpm`)}${metric('カロリー',`${session.calories.toLocaleString('ja-JP')} kcal`)}${metric('獲得標高',`${session.ascent_m} m`)}</dl>
