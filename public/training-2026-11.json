@@ -50,6 +50,8 @@
    "descent_m": 32,
    "city": "江東区",
    "shoe": "asics Magic Speed 5",
+   "shoe_total_km": 28.2,
+   "shoe_target_km": 700,
    "splits": [
     {
      "km": 1,
@@ -1598,6 +1600,8 @@
    "descent_m": 4,
    "city": "江東区",
    "shoe": "asics Magic Speed 5",
+   "shoe_total_km": 32.6,
+   "shoe_target_km": 700,
    "splits": [
     {
      "km": 1,
@@ -2636,6 +2640,8 @@
    "descent_m": 20,
    "city": "江東区",
    "shoe": "asics Magic Speed 5",
+   "shoe_total_km": 37.1,
+   "shoe_target_km": 700,
    "splits": [
     {
      "km": 1,
@@ -3674,6 +3680,8 @@
    "descent_m": 26,
    "city": "江東区",
    "shoe": "NB 1080v15",
+   "shoe_total_km": 77.2,
+   "shoe_target_km": 800,
    "splits": [
     {
      "km": 1,
@@ -4648,6 +4656,8 @@
    "descent_m": 35,
    "city": "江東区",
    "shoe": "adidas Hyperboost",
+   "shoe_total_km": 111.2,
+   "shoe_target_km": 700,
    "splits": [
     {
      "km": 1,
@@ -7297,6 +7307,8 @@
    "descent_m": 23,
    "city": "",
    "shoe": "NB 1080v15",
+   "shoe_total_km": 82.2,
+   "shoe_target_km": 800,
    "splits": [
     {
      "km": 1,

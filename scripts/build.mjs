@@ -36,10 +36,8 @@ const km1 = meters => `${(Math.round(meters / 100) / 10).toFixed(1)} km`; // 小
 const distance = km1;
 const mdw = (date, weekday) => `${Number(date.slice(5, 7))}/${Number(date.slice(8))}（${weekday}）`;
 const jpDate = (date, weekday) => `${date.slice(0, 4)}年${Number(date.slice(5, 7))}月${Number(date.slice(8))}日（${weekday}）`;
-// shortcut: シューズ累計はこのサイトにあるデータ（当月の練習＋レース）だけの合計。過去分の走行距離が入手できたら初期値として足す
-const shoeKey = name => name.toLowerCase();
-const shoeRuns = () => [...training.sessions.map(s => ({date: s.date, shoe: s.shoe, m: s.distance_m})), {date: month.race.date, shoe: m.shoes, m: month.race.distance_m}];
-const shoeTotal = (shoe, through) => shoeRuns().filter(r => shoeKey(r.shoe) === shoeKey(shoe) && r.date <= through).reduce((sum, r) => sum + r.m, 0);
+// シューズの累計・目標はセッションごとの値（その時点）。月次表は各シューズの最後のセッション時点の値を出す
+const shoeBar = (total, target) => `<span class="shoe-bar" role="img" aria-label="目標の${Math.round(total / target * 100)}%"><span style="width:${Math.min(100, total / target * 100).toFixed(1)}%"></span></span>`;
 const duration = seconds => {
   const s = Math.round(seconds);
   return `${Math.floor(s / 3600)}:${String(Math.floor(s % 3600 / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
@@ -60,7 +58,7 @@ await writeFile(new URL(`${month.ym}.html`, trainingDir), shell(`${month.ym} ト
 <section><h2>サマリ</h2><dl class="metrics month-summary">${metric('練習セッション数',`${month.training_sessions} 件`)}${metric('練習距離',km1(month.training_km*1000))}${metric('累計時間',duration(month.training_time_s))}${metric('レース込み総距離',km1(month.total_km_with_race*1000))}</dl></section>
 <section><h2>距離</h2><p class="note">レースを含む</p>${status}<div class="month-charts">${chart('weekly','週別距離（km）')}${chart('daily','日別距離（km）')}</div></section>
 <section><h2>セッション一覧</h2><div class="table-scroll" tabindex="0" role="region" aria-label="セッション一覧"><table class="session-table"><thead><tr>${['日付','距離','経過時間','平均ペース','平均心拍','シューズ'].map(t=>`<th scope="col">${t}</th>`).join('')}</tr></thead><tbody>${rows.map(s=>`<tr><th scope="row"><a href="${esc(s.href)}">${esc(mdw(s.date, s.weekday))}</a></th><td>${distance(s.distance_m)}</td><td>${duration(s.elapsed_s)}</td><td>${avgPace(s)}</td><td>${s.avg_hr == null ? '—' : `${esc(s.avg_hr)} bpm`}</td><td>${esc(s.shoe ?? '—')}</td></tr>`).join('')}</tbody></table></div><p class="note">距離・経過時間はウォッチ計測。平均ペースは経過時間基準。</p></section>
-<section><h2>シューズ</h2><table class="shoe-table"><thead><tr><th scope="col">シューズ</th><th scope="col">累計距離</th></tr></thead><tbody>${[...new Map(shoeRuns().map(r => [shoeKey(r.shoe), r.shoe])).values()].map(shoe => [shoe, shoeTotal(shoe, month.through)]).sort((a,b) => b[1]-a[1]).map(([shoe,total])=>`<tr><th scope="row">${esc(shoe)}</th><td>${km1(total)}</td></tr>`).join('')}</tbody></table><p class="note">累計はこのサイトの記録（${esc(month.ym)}の練習とレース）のみ。</p></section></article>`, 'training-charts.js'));
+<section><h2>シューズ</h2><div class="table-scroll" tabindex="0" role="region" aria-label="シューズ"><table class="shoe-table"><thead><tr>${['シューズ','累計距離','目標距離','達成率','時点'].map(t=>`<th scope="col">${t}</th>`).join('')}</tr></thead><tbody>${[...new Map([...training.sessions].sort((a,b)=>a.date.localeCompare(b.date)).map(s => [s.shoe, s])).values()].sort((a,b) => b.shoe_total_km - a.shoe_total_km).map(s=>`<tr><th scope="row">${esc(s.shoe)}</th><td>${s.shoe_total_km.toFixed(1)} km</td><td>${esc(s.shoe_target_km)} km</td><td>${Math.round(s.shoe_total_km / s.shoe_target_km * 100)}% ${shoeBar(s.shoe_total_km, s.shoe_target_km)}</td><td>${esc(mdw(s.date, s.weekday))}</td></tr>`).join('')}</tbody></table></div><p class="note">各シューズの最後の練習時点の値。</p></section></article>`, 'training-charts.js'));
 for (const session of training.sessions) {
   if (!/^[a-z0-9-]+$/.test(session.slug)) throw new Error('Invalid session slug');
   const c = comments[session.slug];
@@ -70,7 +68,7 @@ for (const session of training.sessions) {
 <h1>${esc(jpDate(session.date, session.weekday))}</h1><p class="date">${esc(session.label)} · ${esc(session.start_time)} 開始</p>
 <section><h2>結果</h2><dl class="times">${metric('距離',distance(session.distance_m))}${metric('経過時間',duration(session.elapsed_s))}${metric('平均ペース',avgPace(session))}</dl>
 <dl class="metrics">${metric('平均心拍',`${session.avg_hr} bpm`)}${metric('最大心拍',`${session.max_hr} bpm`)}${metric('カロリー',`${session.calories.toLocaleString('ja-JP')} kcal`)}${metric('獲得標高',`${session.ascent_m} m`)}</dl>
-<dl class="gear">${metric('シューズ',session.shoe)}${metric('シューズ累計距離',`${km1(shoeTotal(session.shoe, session.date))}（${mdw(session.date, session.weekday)}時点）`)}</dl><p class="note">平均ペースは経過時間基準。</p></section>
+<dl class="gear">${metric('シューズ',session.shoe)}<div><dt>シューズ累計／目標（この日時点）</dt><dd>${session.shoe_total_km.toFixed(1)} km ／ ${esc(session.shoe_target_km)} km ${shoeBar(session.shoe_total_km, session.shoe_target_km)}</dd></div></dl><p class="note">平均ペースは経過時間基準。</p></section>
 <section><h2>グラフ</h2>${status}<div class="small-charts tiles">${chart('pace','ペース（/km）')}${chart('elevation','標高（m）')}${chart('hr','心拍（bpm）')}${chart('cadence','ケイデンス（spm）')}${chart('power','パワー（W）')}${chart('stance','接地時間（ms）')}</div></section>
 <section><h2>1kmスプリット</h2><div class="table-scroll" tabindex="0" role="region" aria-label="1kmスプリット"><table><thead><tr>${['区間','ペース /km','平均心拍'].map(t=>`<th scope="col">${t}</th>`).join('')}</tr></thead><tbody>${session.splits.map(s=>`<tr><th scope="row">${esc(s.km)} km${s.partial_m == null ? '' : `（端数 ${esc(s.partial_m)} m / ${paceText(s.sec)}）`}</th><td>${paceText(s.pace_s_km ?? s.sec)}</td><td>${esc(s.hr)} bpm</td></tr>`).join('')}</tbody></table></div></section>
 <section class="manager-comments"><h2>マネージャーのコメント</h2><h3>総評</h3><p class="comment-summary">${esc(c.summary)}</p><h3>良かった点</h3><div class="comment-good">${commentList(c.good)}</div><h3>改善点</h3><div class="comment-improve">${commentList(c.improve)}</div></section></article>`, 'training-charts.js'));
