@@ -79,7 +79,9 @@ const duration = seconds => {
 const avgPace = session => `${paceText(session.elapsed_s / session.distance_m * 1000)} /km`;
 const trainingDir = new URL('../public/training/', import.meta.url);
 await mkdir(trainingDir, {recursive: true});
-await writeFile(new URL('index.html', trainingDir), shell('トレーニング記録', `<h1>トレーニング記録</h1><ul class="posts">${trainingMonths.map(({month}) => `<li><a href="/training/${esc(month.ym)}">${esc(month.ym)}</a></li>`).join('')}</ul>`));
+const monthIndex = `<ul class="posts">${trainingMonths.map(({month}) => `<li><a href="/training/${esc(month.ym)}">${esc(month.ym)}</a></li>`).join('')}</ul>`;
+await writeFile(new URL('index.html', trainingDir), shell('トレーニング記録', `<h1>トレーニング記録</h1>${monthIndex}`));
+await writeFile(new URL('../public/index.html', import.meta.url), shell('ホーム', `<div class="hero"><p class="eyebrow">Running log</p><h1>Pace Notes</h1><p class="lede">走った距離と数字の記録</p></div><section><h2>レース</h2><ul class="posts"><li><a href="fukuoka-2026.html">${esc(m.race)} ― ${esc(date)} / ネット ${esc(m.net)}</a></li></ul></section><section><h2>トレーニング記録</h2>${monthIndex}</section>`));
 for (const training of trainingMonths) {
 const month = training.month;
 const back = `<p class="breadcrumb"><a href="/training/${esc(month.ym)}">${esc(month.ym)}</a></p>`;
@@ -88,9 +90,6 @@ const status = '<p id="chart-status" role="status">グラフを読み込んで�
 const rows = [...training.sessions.map(s => ({...s, href: `/training/${s.slug}`})), {...month.race, href: month.race.link}].sort((a,b) => a.date.localeCompare(b.date));
 const monthSummary = `<section><h2>サマリ</h2><dl class="metrics month-summary">${metric('練習セッション数',`${month.training_sessions} 件`)}${metric('練習距離',km1(month.training_km*1000))}${metric('累計時間',duration(month.training_time_s))}${metric('総距離',km1(month.total_km_with_race*1000))}</dl></section>`;
 const sessionTable = `<section><h2>セッション一覧</h2><div class="table-scroll" tabindex="0" role="region" aria-label="セッション一覧"><table class="session-table"><thead><tr>${['日付','開始','距離','経過時間','平均ペース','平均心拍','シューズ'].map(t=>`<th scope="col">${t}</th>`).join('')}</tr></thead><tbody>${rows.map(s=>`<tr><th scope="row"><a href="${esc(s.href)}">${esc(mdw(s.date, s.weekday))}</a></th><td>${esc(s.start_time ?? '—')}</td><td>${distance(s.distance_m)}</td><td>${duration(s.elapsed_s)}</td><td>${avgPace(s)}</td><td>${s.avg_hr == null ? '—' : `${esc(s.avg_hr)} bpm`}</td><td>${esc(s.shoe ?? '—')}</td></tr>`).join('')}</tbody></table></div><p class="note">距離・経過時間はウォッチ計測。平均ペースは経過時間基準。</p></section>`;
-if (training === trainingMonths[0]) {
-await writeFile(new URL('../public/index.html', import.meta.url), shell('ホーム', `<div class="hero"><p class="eyebrow">Running log</p><h1>Pace Notes</h1><p class="lede">走った距離と数字の記録</p></div><section><h2>レース</h2><ul class="posts"><li><a href="fukuoka-2026.html">${esc(m.race)} ― ${esc(date)} / ネット ${esc(m.net)}</a></li></ul></section><section><h2>トレーニング記録</h2><h3>${esc(month.ym)}</h3>${monthSummary}${sessionTable}<p class="link-card"><a href="/training/${esc(month.ym)}">${esc(month.ym)}の月次ページ</a> · <a href="/training/">過去月のトレーニング記録</a></p></section>`));
-}
 await writeFile(new URL(`${month.ym}.html`, trainingDir), shell(`${month.ym} トレーニング記録`, `<article data-training-month="${esc(month.ym)}">
 <h1>${esc(month.ym)} トレーニング記録</h1>
 ${monthSummary}
