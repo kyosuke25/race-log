@@ -6,6 +6,52 @@ Elevation is always expressed in km / m. Missing sensor values remain null.
 """
 import json, math, datetime
 
+# History summary fields share aggregates for race and training.
+SUMMARY_FIELDS = {
+    'vo2max': ('VO2_max', 1),
+    'aerobic_te': ('te', 10),
+    'anaerobic_te': ('anaerobic_te', 10),
+    'exercise_load': ('exercise_load', 1),
+    'total_steps': ('total_step', 1),
+    'max_power_w': ('max_power', 1),
+    'max_vo_mm': ('maxVo', 1),
+    'min_gct_ms': ('minGct', 1),
+    'equiv_pace_s_km': ('avgEquivPace', 1),
+    'best_equiv_pace_s_km': ('bestEquivPace', 1),
+    'equiv_distance_m': ('equivDistance', 100),
+    'rpe': ('rpe', 1),
+}
+
+
+def history_aggregates(item):
+    result = {}
+    for name, (source, divisor) in SUMMARY_FIELDS.items():
+        raw = item.get(source)
+        if raw is None or raw == '':
+            continue
+        value = float(raw)
+        if not math.isfinite(value) or value <= 0:
+            continue
+        value /= divisor
+        result[name] = (round(value) if name == 'equiv_distance_m'
+                        else value if divisor != 1 else int(value) if value.is_integer() else value)
+    raw = item.get('heart_range')
+    if raw and raw not in ('0', '-1', '-274'):
+        zones = []
+        for pair in raw.split(';'):
+            if not pair.strip():
+                continue
+            seconds, under = map(int, pair.split(','))
+            if seconds >= 0 and under > 0:
+                zones.append({'under_bpm': under, 'seconds': seconds})
+        if zones and any(z['seconds'] > 0 for z in zones):
+            result['hr_zones'] = zones
+    weather = item.get('weatherInfo')
+    if weather and weather.strip() not in ('0', '-1', '-274'):
+        result['weather_info_raw'] = weather
+    return result
+
+
 def prepare(base, race_mode=False):
     race_details = {}
     BASE = str(base)
@@ -134,7 +180,7 @@ def prepare(base, race_mode=False):
                            'pace_s_km': round((t1 - t0) / rem * 1000), 'hr': window_avg('heart_rate_bpm', t0, t1)})
 
         # 100 m buckets: pace / hr / cadence / power / gct / altitude
-        series = {'pace': [], 'hr': [], 'cadence': [], 'power': [], 'gct': [], 'vo': [], 'vr': [], 'stride': [], 'alt': []}
+        series = {'pace': [], 'hr': [], 'cadence': [], 'power': [], 'gct': [], 'vo': [], 'vr': [], 'stride': [], 'speed': [], 'alt': []}
         nb = int(total_gps // 100)
         alt_clean = {}
         last_alt = None
@@ -148,7 +194,7 @@ def prepare(base, race_mode=False):
             t0, t1 = time_at(d0), time_at(d1)
             mid = round((d0 + d1) / 2)
             series['pace'].append([mid, round((t1 - t0) * 10)])  # s per km
-            for key, field in (('hr', 'heart_rate_bpm'), ('cadence', 'cadence_spm'), ('power', 'power_w'), ('gct', 'stance_time_ms'), ('vo', 'vertical_oscillation_mm'), ('vr', 'vertical_ratio_pct'), ('stride', 'stride_m')):
+            for key, field in (('hr', 'heart_rate_bpm'), ('cadence', 'cadence_spm'), ('power', 'power_w'), ('gct', 'stance_time_ms'), ('vo', 'vertical_oscillation_mm'), ('vr', 'vertical_ratio_pct'), ('stride', 'stride_m'), ('speed', 'speed_m_per_s')):
                 v = window_avg(field, t0, t1)
                 series[key].append([mid, v])
             # altitude at bucket end (smoothed later at 250 m sampling)
@@ -199,6 +245,8 @@ def prepare(base, race_mode=False):
                     cm['pace_second_half_s_km'] = round(sum(s['sec'] for s in full_splits[h:]) / (len(full_splits) - h))
         if cm['hr_first_half'] and cm['hr_second_half']:
             cm['hr_drift_pct'] = round((cm['hr_second_half'] / cm['hr_first_half'] - 1) * 100, 1)
+
+        cm.update(history_aggregates(it))
 
         if race_mode:
             def fmt(s):

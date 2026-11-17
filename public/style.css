@@ -124,3 +124,6 @@ figure:last-child{margin-bottom:0}
 .shoe-table td:nth-child(4){min-width:110px}
 .yoy{margin-top:24px;background:var(--soft);border-radius:12px;padding:14px}
 .yoy .chart{height:220px}
+
+.hr-zones{display:grid;gap:14px}
+.hr-zones>div{display:grid;grid-template-columns:7em minmax(0,1fr);gap:12px;align-items:center}

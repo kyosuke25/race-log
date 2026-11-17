@@ -11,7 +11,7 @@ const assert = require('node:assert/strict');
  await page.locator('.posts a').click();
  await page.waitForFunction(()=>document.querySelector('#chart-status').hidden);
  const d=await page.evaluate(()=>fetch('./data.json').then(r=>r.json()));
- assert.equal(await page.locator('article > section').count(),3);
+ assert.equal(await page.locator('article > section').count(),5);
  assert.equal(await page.locator('tbody tr').count(),d.splits5k.length);
  assert.deepEqual(await page.locator('.times dd').allTextContents(),[d.meta.net,d.meta.first_half,d.meta.second_half]);
  const charts=await page.evaluate(()=>Array.from(document.querySelectorAll('canvas')).map(c=>{const ch=Chart.getChart(c);return {id:c.id,data:ch.data.datasets.map(s=>s.data),reverse:ch.options.scales.y.reverse}}));
@@ -28,5 +28,5 @@ const assert = require('node:assert/strict');
  }
  assert.deepEqual(errors,[]);
  await browser.close();
- console.log('PASS: one post; three sections; all split rows; result times; seven charts match JSON; reversed pace axis; 375px/1280px without overflow; no page errors.');
+ console.log('PASS: one post; five sections; all split rows; result times; seven charts match JSON; reversed pace axis; 375px/1280px without overflow; no page errors.');
 })().catch(e=>{console.error(e);process.exit(1)});

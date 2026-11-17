@@ -40,3 +40,15 @@ Python標準ライブラリのみ使用。元のprepスクリプトは不要。
 既存verifyはChart.jsとフォントをCDNから読むため、完全オフライン実行には
 別途それらのローカル配信設定も必要。verify-data.py / verify-charts.cjsは
 依存インストール・ネットワーク・サーバー不要で実行できる。
+
+履歴サマリ追加項目は両種のセッションの `aggregates` に配置する。
+`vo2max`, `aerobic_te`, `anaerobic_te`, `exercise_load`, `total_steps`,
+`max_power_w`, `max_vo_mm`, `min_gct_ms`, `hr_zones`, `equiv_pace_s_km`,
+`best_equiv_pace_s_km`, `equiv_distance_m`, `rpe`, `weather_info_raw`。
+TEは履歴値/10、等価距離は履歴値/100を整数mに丸める。
+数値が0以下・空ならキーごと省略。心拍ゾーンは0秒の区分も保持し、
+全区分0秒なら省略。weatherInfoは文字列のまま保持する。
+`series.speed` は timeline の speed_m_per_s の100m区間平均（m/s、小数1桁）。
+既存8系列と同じ距離・時間境界と欠測処理を使う。
+verify-data.pyはローカルの履歴と全セッションの追加値・欠落を照合する。
+入力元変更時は `--race-source` / `--training-source` を指定できる。
