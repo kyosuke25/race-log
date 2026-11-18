@@ -8,6 +8,38 @@ root = Path(__file__).resolve().parents[1]
 race = json.loads((root / 'public/data.json').read_text())
 training = json.loads((root / 'public/training-2026-11.json').read_text())
 sessions = [race['session'], *training['sessions']]
+
+def html_esc(value):
+    return (str(value).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            .replace('"', '&quot;').replace("'", '&#39;'))
+
+def comment_items(items):
+    return ''.join(f'<li>{html_esc(item)}</li>' for item in items)
+
+comments = json.loads((root / 'public/comments.json').read_text())['comments']
+training_slugs = [s['slug'] for s in training['sessions']]
+assert list(comments) == training_slugs, (list(comments), training_slugs)
+for session in training['sessions']:
+    comment = comments[session['slug']]
+    assert list(comment) == ['menu', 'purpose', 'recap', 'good', 'next'], (session['slug'], list(comment))
+    for key in ('menu', 'purpose', 'recap'):
+        assert isinstance(comment[key], str) and comment[key], (session['slug'], key)
+    for key in ('good', 'next'):
+        assert (isinstance(comment[key], list) and comment[key]
+                and all(isinstance(item, str) and item for item in comment[key])), (session['slug'], key)
+    page = (root / 'public' / 'training' / f'{session["slug"]}.html').read_text()
+    expected = (
+        '<section class="manager-comments"><h2>マネージャーのコメント</h2>'
+        f'<h3>Menu</h3><p class="comment-menu">{html_esc(comment["menu"])}</p>'
+        f'<h3>Purpose</h3><p class="comment-purpose">{html_esc(comment["purpose"])}</p>'
+        f'<h3>Recap</h3><p class="comment-recap">{html_esc(comment["recap"])}</p>'
+        f'<h3>Good</h3><div class="comment-good"><ul>{comment_items(comment["good"])}</ul></div>'
+        f'<h3>Next</h3><div class="comment-next"><ul>{comment_items(comment["next"])}</ul></div></section>'
+    )
+    assert expected in page, session['slug']
+    assert 'comment-summary' not in page and 'comment-improve' not in page, session['slug']
+    assert '<h3>総評</h3>' not in page and '<h3>良かった点</h3>' not in page and '<h3>改善点</h3>' not in page, session['slug']
+
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--race-source', type=Path, default=Path.home() / 'workspace/fukuoka-page')
 parser.add_argument('--training-source', type=Path, default=Path.home() / 'workspace/training-page')
@@ -140,4 +172,4 @@ for s in sessions:
         assert '<dt>総歩数</dt><dd>41666 歩</dd>' in html
         assert '<dt>上限 153 bpm</dt><dd>9116 秒（' in html
     assert html.count('<canvas ') == (7 if s['kind']=='race' else 6)
-print('PASS: 9 unified sessions; 9 sensor series each; history summary values and invalid-value omission; elevation km; partial splits; all aggregates; no coordinate/private keys; published headlines; generated page shoes and charts; optional detail tiles and HR zone seconds/percentages/bars on all pages; Fukuoka VO2max 49, steps 41666, 153 bpm / 9116 seconds; raw weather omitted.')
+print('PASS: 9 unified sessions; 9 sensor series each; history summary values and invalid-value omission; elevation km; partial splits; all aggregates; no coordinate/private keys; published headlines; generated page shoes and charts; optional detail tiles and HR zone seconds/percentages/bars on all pages; Fukuoka VO2max 49, steps 41666, 153 bpm / 9116 seconds; raw weather omitted; training comments are menu/purpose/recap/good/next.')

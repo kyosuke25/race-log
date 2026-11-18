@@ -97,7 +97,7 @@ figure:last-child{margin-bottom:0}
 /* comments */
 .manager-comments h3{margin-top:22px}
 .manager-comments h3:first-of-type{margin-top:0}
-.comment-summary{background:var(--soft);border-left:4px solid var(--accent);padding:14px 18px;border-radius:0 10px 10px 0;margin:0}
+.comment-menu,.comment-purpose,.comment-recap{background:var(--soft);border-left:4px solid var(--accent);padding:14px 18px;border-radius:0 10px 10px 0;margin:0}
 .manager-comments ul{margin:0;padding-left:1.2em}
 .manager-comments li{margin:8px 0}
 .manager-comments p,.manager-comments li{white-space:pre-line;overflow-wrap:anywhere}

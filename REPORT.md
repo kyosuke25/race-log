@@ -236,3 +236,38 @@ GPS累積は約42.384kmで、履歴サマリ42.457kmとは異なる。
   `npx --no-install wrangler deploy --config wrangler.personal.toml`を実行する。
   トークンはCI環境変数から渡し、ローカルの認証情報には依存しない。
 - ネットワーク不使用。git commit / pushは実行せず、変更はワーキングツリーに残した。
+
+# REPORT — 2026-11-18 練習コメント v2
+
+## 変更
+
+- `public/comments.json`: 8セッション（2026-11-03-pm、2026-11-05-night、2026-11-06-night、2026-11-12-night、2026-11-14-pm、2026-11-16-am、2026-11-17-am、2026-11-18-night）を `menu` / `purpose` / `recap` / `good` / `next` に差し替えた。本文は添付原稿の日本語をそのまま使っている。旧 `summary` / `improve` は残していない。
+- `scripts/build.mjs`: 各練習ページのコメントを Menu、Purpose、Recap、Good、Next の順で出す。文字列は従来の `esc` でエスケープする。
+- `public/style.css`: Menu / Purpose / Recap に、従来の総評と同じ折り返し用の枠を付けた。640px以下の既存レイアウトはそのまま。
+- `scripts/verify-data.py`: 生成HTMLがこの5見出しと原文に一致することを、履歴JSONの比較より前に検査する。
+- `scripts/verify-training.cjs`: コメント照合を新しいフィールドと英語見出しに変えた。月次の件数・距離の期待値は変えていない。
+- `scripts/prep/WORKFLOW.md` と `scripts/prep/coach-persona.md`: コメントの項目をこの5つに合わせた。ペルソナの「相手の前提」は11-16までの回復期のままで、11-17・11-18や晴海大橋の文脈は追記していない。
+- 再生成した差分は `public/training/` の8セッションHTMLだけ。距離、心拍、月次、トップ、レースページに差分はない。
+
+## 検証
+
+- `npm run build`: 成功。練習セッション8ページを生成。
+- `node scripts/verify-charts.cjs`: PASS。
+- `python3 scripts/verify-data.py`: 新しいコメント検査は例外なく通過し、その次の履歴読み込みで止まった。この環境に `~/workspace/fukuoka-page/list_workouts_raw.json` が無く、FileNotFoundError。履歴との突き合わせは未実施。生データはリポジトリに含まれない。
+- Headless Chromeで8ページを375pxと1280pxで開き、英語5見出し、原文一致、ページの横はみ出しなしを確認。
+- `git diff --check`: 問題なし。
+- `scripts/verify-training.cjs` は Playwright が未導入のため未実行。コメント照合は新しい形に更新済み。月次サマリの期待値は従来の「6件 / 36.7 km / 4:04:21 / 79.2 km」のままで、現行の8件ページとは一致しない。
+
+## 公開サイトへ届けるために必要なこと
+
+デフォルトブランチは `master`。`.github/workflows/deploy.yml` は `push` の対象が `master` で、加えて `workflow_dispatch` がある。`main` への push では走らない。上の「2026-11-17 統一prep・CI移行」にある「main push時」は、現在のワークフローファイルと一致しない。
+
+この変更がライブサイトに出る条件は、このPRを `master` にマージすること。マージは `master` への push なので Deploy personal Workers site が走る。作業ブランチへの push や、PRを開いただけではデプロイされない。
+
+ジョブは `npm ci`、`node scripts/build.mjs`、`wrangler.personal.toml` の account_id と secret `CLOUDFLARE_ACCOUNT_ID` の一致確認、`npx --no-install wrangler deploy --config wrangler.personal.toml`。トークンは `CLOUDFLARE_API_TOKEN`。
+
+Secret一覧APIはこの認証では403で、名前を直接は確認できていない。2026-11-18の run https://github.com/kyosuke25/race-log/actions/runs/44330184538 （sha `76f4efb`）を含む、`master` への11回の push で同じワークフローが成功し、その中の「Deploy to personal account」も成功している。このステップは account_id が secret と違うと失敗し、デプロイにはAPIトークンが要る。両secretは設定済みで、直近のデプロイに使えている。追加のsecret登録は不要。
+
+マージ後の手動 `wrangler deploy` は不要。ブランチ保護はAPIが403で読めなかった。レビュー必須などがあれば、GitHubがマージを許可する条件を満たす必要がある。
+
+公開先は Worker `run-log`、https://run.kyosuke.tokyo 。

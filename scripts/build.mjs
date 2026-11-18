@@ -100,6 +100,12 @@ for (const session of training.sessions) {
   if (!/^[a-z0-9-]+$/.test(session.slug)) throw new Error('Invalid session slug');
   const c = comments[session.slug];
   if (!c) throw new Error(`Missing comments: ${session.slug}`);
+  for (const key of ['menu', 'purpose', 'recap']) {
+    if (typeof c[key] !== 'string' || !c[key]) throw new Error(`Invalid comment ${key}: ${session.slug}`);
+  }
+  for (const key of ['good', 'next']) {
+    if (!Array.isArray(c[key]) || !c[key].length || c[key].some(item => typeof item !== 'string' || !item)) throw new Error(`Invalid comment ${key}: ${session.slug}`);
+  }
   const commentList = items => `<ul>${items.map(item=>`<li>${esc(item)}</li>`).join('')}</ul>`;
   await writeFile(new URL(`${session.slug}.html`, trainingDir), shell(jpDate(session.date, session.weekday), `${back}<article data-training-slug="${esc(session.slug)}">
 <h1>${esc(jpDate(session.date, session.weekday))}</h1><p class="date">${esc(session.start_time)}スタート</p>
@@ -109,7 +115,7 @@ for (const session of training.sessions) {
 ${sessionDetails(session)}
 <section><h2>グラフ</h2>${status}<div class="small-charts tiles">${chart('pace','ペース（/km）')}${chart('elevation','標高（m）')}${chart('hr','心拍（bpm）')}${chart('cadence','ケイデンス（spm）')}${chart('power','パワー（W）')}${chart('stance','接地時間（ms）')}</div></section>
 <section><h2>1kmスプリット</h2><div class="table-scroll" tabindex="0" role="region" aria-label="1kmスプリット"><table><thead><tr>${['区間','ペース /km','平均心拍'].map(t=>`<th scope="col">${t}</th>`).join('')}</tr></thead><tbody>${session.splits.map(s=>`<tr><th scope="row">${esc(s.km)} km${s.partial_m == null ? '' : `（端数 ${esc(s.partial_m)} m / ${paceText(s.sec)}）`}</th><td>${paceText(s.pace_s_km ?? s.sec)}</td><td>${esc(s.hr)} bpm</td></tr>`).join('')}</tbody></table></div></section>
-<section class="manager-comments"><h2>マネージャーのコメント</h2><h3>総評</h3><p class="comment-summary">${esc(c.summary)}</p><h3>良かった点</h3><div class="comment-good">${commentList(c.good)}</div><h3>改善点</h3><div class="comment-improve">${commentList(c.improve)}</div></section></article>`, 'training-charts.js'));
+<section class="manager-comments"><h2>マネージャーのコメント</h2><h3>Menu</h3><p class="comment-menu">${esc(c.menu)}</p><h3>Purpose</h3><p class="comment-purpose">${esc(c.purpose)}</p><h3>Recap</h3><p class="comment-recap">${esc(c.recap)}</p><h3>Good</h3><div class="comment-good">${commentList(c.good)}</div><h3>Next</h3><div class="comment-next">${commentList(c.next)}</div></section></article>`, 'training-charts.js'));
 }
 console.log(`Generated training index, ${month.ym} and ${training.sessions.length} session pages`);
 }
