@@ -36,9 +36,12 @@ const fs=require('node:fs');
  assert.equal(await page.locator('.gear dd').nth(1).innerText(),`${s.shoe_total_km.toFixed(1)} km ／ ${s.shoe_target_km} km`);
  assert.equal(await page.locator('tbody tr').count(),s.splits.length);
  for(const [i,split] of s.splits.entries())if(split.partial_m!=null){const row=await page.locator('tbody tr').nth(i).innerText();assert(row.includes(`${split.partial_m} m`));assert(row.includes('端数'));}
- assert.equal(await page.locator('.comment-summary').textContent(),comments[s.slug].summary);
+ assert.deepEqual(await page.locator('.manager-comments h3').allTextContents(),['Menu','Purpose','Recap','Good','Next']);
+ assert.equal(await page.locator('.comment-menu').textContent(),comments[s.slug].menu);
+ assert.equal(await page.locator('.comment-purpose').textContent(),comments[s.slug].purpose);
+ assert.equal(await page.locator('.comment-recap').textContent(),comments[s.slug].recap);
  assert.deepEqual(await page.locator('.comment-good li').allTextContents(),comments[s.slug].good);
- assert.deepEqual(await page.locator('.comment-improve li').allTextContents(),comments[s.slug].improve);
+ assert.deepEqual(await page.locator('.comment-next li').allTextContents(),comments[s.slug].next);
  for(const [id,key] of [['pace','pace'],['hr','hr'],['cadence','cadence'],['power','power'],['stance','gct']]){
  const c=await chart(id);assert.deepEqual(c.data[0],s.series[key].map(([m,y])=>({x:m/1000,y})));if(id==='pace')assert(c.reverse);
  }
