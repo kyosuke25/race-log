@@ -131,9 +131,11 @@ def prepare(base, race_mode=False):
                         indexed[row['offset_s']].update(row)
         tl = sorted(t['timeline'], key=lambda r: r['offset_s'])
         start = datetime.datetime.fromtimestamp(int(it['end_time']) - int(it['run_time']), JST)
-        # Use the recorded start for this new session (history run_time excludes
-        # its pauses). Keep the start times of previously published runs intact.
-        if trackid == '1794868431':
+        # run_time excludes pauses, so end_time - run_time is later than the
+        # recorded start. These sessions use the recorded start: 11/17 and 11/18
+        # are already published that way, and 11/19 starts at 07:36:42 JST.
+        # Other published sessions stay on end_time - run_time.
+        if trackid in {'1794868431', '1795004813', '1795041402'}:
             start = datetime.datetime.fromtimestamp(int(t['start_time_unix']), JST)
         # cumulative GPS distance
         cum = {}
