@@ -122,15 +122,16 @@ expected = [
     (5043, 2100, 82.2),
     (5132, 2028, 87.4),
     (11006, 4613, 37.5),
+    (5049, 2107, 116.3),
 ]
 assert [(s['distance_m'],s['elapsed_s'],s['shoe_total_km']) for s in training['sessions']] == expected
-assert training['month']['training_km'] == 52.83
-assert training['month']['training_time_s'] == 21302
-assert training['month']['total_km_with_race'] == 95.29
+assert training['month']['training_km'] == 57.88
+assert training['month']['training_time_s'] == 23409
+assert training['month']['total_km_with_race'] == 100.34
 assert training['month']['race']['shoe_total_km'] == r['shoe_total_km']
-assert training['sessions'][-1]['track_id'] == '1795004813'
-assert training['sessions'][-1]['start_time'] == '21:26'
-assert training['month']['training_sessions'] == 8
+assert training['sessions'][-1]['track_id'] == '1795041402'
+assert training['sessions'][-1]['start_time'] == '07:36'
+assert training['month']['training_sessions'] == 9
 assert training['gear']
 detail_labels = {
     'vo2max': ('VO2max', ''), 'aerobic_te': ('有酸素TE', ''),
@@ -172,4 +173,4 @@ for s in sessions:
         assert '<dt>総歩数</dt><dd>41666 歩</dd>' in html
         assert '<dt>上限 153 bpm</dt><dd>9116 秒（' in html
     assert html.count('<canvas ') == (7 if s['kind']=='race' else 6)
-print('PASS: 9 unified sessions; 9 sensor series each; history summary values and invalid-value omission; elevation km; partial splits; all aggregates; no coordinate/private keys; published headlines; generated page shoes and charts; optional detail tiles and HR zone seconds/percentages/bars on all pages; Fukuoka VO2max 49, steps 41666, 153 bpm / 9116 seconds; raw weather omitted; training comments are menu/purpose/recap/good/next.')
+print('PASS: 10 unified sessions; 9 sensor series each; history summary values and invalid-value omission; elevation km; partial splits; all aggregates; no coordinate/private keys; published headlines; generated page shoes and charts; optional detail tiles and HR zone seconds/percentages/bars on all pages; Fukuoka VO2max 49, steps 41666, 153 bpm / 9116 seconds; raw weather omitted; training comments are menu/purpose/recap/good/next.')
