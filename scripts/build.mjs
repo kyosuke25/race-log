@@ -1,4 +1,8 @@
 import { readFile, writeFile, mkdir, readdir, access } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { fileURLToPath } from 'node:url';
+const execFileAsync = promisify(execFile);
 const d = JSON.parse(await readFile(new URL('../public/data.json', import.meta.url), 'utf8'));
 const raceSession = d.session;
 const m = {...d.meta, ...raceSession.race,
@@ -7,8 +11,8 @@ const m = {...d.meta, ...raceSession.race,
   calories_kcal: raceSession.calories, shoes: raceSession.shoe,
   shoe_total_km: raceSession.shoe_total_km, shoe_target_km: raceSession.shoe_target_km};
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const shell = (title, body, charts = false) => `<!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} | Pace Notes</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;1,700&family=Noto+Sans+JP:wght@400;500;700&display=swap"><link rel="stylesheet" href="/style.css">${charts ? `<script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script><script defer src="/chart-utils.js"></script><script defer src="/${charts === true ? 'charts.js' : charts}"></script>` : ''}</head><body><header class="site-header"><div class="bar"><a class="brand" href="/">Pace<span>Notes</span></a><nav aria-label="サイト"><a href="/">レース</a><a href="/training/">トレーニング</a></nav></div></header><main>${body}</main><footer class="site-footer">Pace Notes — 走った距離と数字の記録</footer></body></html>\n`;
+const shell = (title, body, charts = false, head = '') => `<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} | Pace Notes</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;1,700&family=Noto+Sans+JP:wght@400;500;700&display=swap"><link rel="stylesheet" href="/style.css">${head}${charts ? `<script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script><script defer src="/chart-utils.js"></script><script defer src="/${charts === true ? 'charts.js' : charts}"></script>` : ''}</head><body><header class="site-header"><div class="bar"><a class="brand" href="/">Pace<span>Notes</span></a><nav aria-label="サイト"><a href="/">レース</a><a href="/training/">トレーニング</a></nav></div></header><main>${body}</main><footer class="site-footer">Pace Notes — 走った距離と数字の記録</footer></body></html>\n`;
 const date = m.date.replace(/（.*）/, '');
 
 const shoeBar = (total, target) => `<span class="shoe-bar" role="img" aria-label="目標の${Math.round(total / target * 100)}%"><span style="width:${Math.min(100, total / target * 100).toFixed(1)}%"></span></span>`;
@@ -18,6 +22,39 @@ const paceText = seconds => {
   const s = Math.round(seconds);
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 };
+const SITE = 'https://run.kyosuke.tokyo';
+const clockSeconds = text => text.split(':').reduce((total, part) => total * 60 + Number(part), 0);
+const ogDate = iso => iso.replaceAll('-', '.');
+const fontFile = fileURLToPath(new URL('./fonts/BarlowCondensed-SemiBold.ttf', import.meta.url));
+const ffText = value => value.replace(/\\/g, '\\\\').replace(/:/g, '\\:').replace(/'/g, "\\'").replace(/%/g, '\\%');
+const renderOg = async (heroFile, slug, lines) => {
+  const outDir = new URL('../public/images/og/', import.meta.url);
+  await mkdir(outDir, { recursive: true });
+  const out = fileURLToPath(new URL(`${slug}.jpg`, outDir));
+  const font = fontFile.replace(/:/g, '\\:').replace(/'/g, "\\'");
+  const draw = (text, x) => `drawtext=fontfile='${font}':text='${ffText(text)}':fontsize=78:fontcolor=white:x=${x}:y=h-118`;
+  const filter = [
+    '[0:v]scale=1200:630:force_original_aspect_ratio=increase,crop=1200:630,setsar=1[bg]',
+    '[bg][1:v]overlay=format=auto',
+    draw(lines[0], '(w/6)-(text_w/2)'),
+    draw(lines[1], '(w/2)-(text_w/2)'),
+    draw(lines[2], '(w*5/6)-(text_w/2)'),
+  ].join(',');
+  await execFileAsync('ffmpeg', [
+    '-y', '-i', fileURLToPath(heroFile),
+    '-f', 'lavfi', '-i', "color=c=0x16191d:s=1200x630:d=1,format=rgba,geq=r=22:g=25:b=29:a='if(lt(Y,340),0,clip((Y-340)/290*220,0,220))'",
+    '-filter_complex', filter,
+    '-frames:v', '1', '-update', '1', '-q:v', '3', out,
+  ]);
+  return `${SITE}/images/og/${slug}.jpg`;
+};
+const socialHead = ({ title, url, image }) => [
+  `<meta property="og:title" content="${esc(title)}">`,
+  `<meta property="og:type" content="website">`,
+  `<meta property="og:url" content="${esc(url)}">`,
+  `<meta property="og:image" content="${esc(image)}">`,
+  `<meta name="twitter:card" content="summary_large_image">`,
+].join('');
 const detailFields = [
   ['vo2max', 'VO2max', ''], ['aerobic_te', '有酸素TE', ''],
   ['anaerobic_te', '無酸素TE', ''], ['exercise_load', '運動負荷', ''],
@@ -40,8 +77,34 @@ const sessionDetails = session => {
     }).join('')}</dl></section>` : '');
 };
 const chart = (id, title) => `<figure><h3>${title}</h3><div class="chart"><canvas id="${id}" role="img" aria-label="${title}"></canvas></div></figure>`;
+const heroAsset = async (folder, slug) => {
+  const base = new URL(`../public/images/${folder}/`, import.meta.url);
+  let ext = null;
+  for (const candidate of ['webp', 'jpg', 'jpeg']) {
+    try {
+      await access(new URL(`${slug}.${candidate}`, base));
+      ext = candidate;
+      break;
+    } catch {}
+  }
+  if (!ext) return null;
+  let alt = '';
+  try { alt = (await readFile(new URL(`${slug}.txt`, base), 'utf8')).trim(); } catch {}
+  const src = `/images/${folder}/${slug}.${ext}`;
+  return { file: new URL(`${slug}.${ext}`, base), html: `<figure class="session-hero"><img src="${esc(src)}" alt="${esc(alt)}"></figure>\n` };
+};
+const raceHero = await heroAsset('races', raceSession.slug);
+const raceHead = raceHero ? socialHead({
+  title: m.race,
+  url: `${SITE}/${raceSession.slug}`,
+  image: await renderOg(raceHero.file, raceSession.slug, [
+    ogDate(raceSession.date),
+    '42.195 km',
+    `${paceText(clockSeconds(m.net) / 42.195)} /km`,
+  ]),
+}) : '';
 await writeFile(new URL('../public/fukuoka-2026.html', import.meta.url), shell(m.race, `<article>
-<h1>${esc(m.race)}</h1><p class="date">${esc(m.date)}</p>
+${raceHero ? raceHero.html : ''}<h1>${esc(m.race)}</h1><p class="date">${esc(m.date)}</p>
 <section aria-labelledby="about"><h2 id="about">大会について</h2><ul class="facts">
 <li>${esc(m.edition)}福岡マラソン（2014年に始まった大会）</li>
 <li>${esc(m.date)}8:20スタート</li>
@@ -58,7 +121,7 @@ ${sessionDetails(raceSession)}
 <section aria-labelledby="graphs"><h2 id="graphs">グラフ</h2><p id="chart-status" role="status">グラフを読み込んでいます。</p><noscript><p>グラフの表示にはJavaScriptが必要です。<a href="data.json">計測データ</a></p></noscript>
 <div class="small-charts tiles">${chart('pace','ペース（/km）')}${chart('elevation','標高（m）')}${chart('hr','心拍（bpm）')}${chart('cadence','ケイデンス（spm）')}${chart('power','パワー（W）')}${chart('stance','接地時間（ms）')}</div>
 <figure class="yoy"><h3>前年比較（/km）</h3><p class="comparison">2025年 ${esc(d.yoy5k.total2025)} → 2026年 ${esc(d.yoy5k.total2026)}</p><div class="chart"><canvas id="yoy" role="img" aria-label="前年との5km区間平均ペース比較"></canvas></div></figure>
-</section></article>`, true));
+</section></article>`, true, raceHead));
 console.log('Generated fukuoka-2026.html from public/data.json');
 
 const trainingFiles = (await readdir(new URL('../public/', import.meta.url)))
@@ -67,21 +130,6 @@ if (!trainingFiles.length) throw new Error('No training month data found');
 const trainingMonths = await Promise.all(trainingFiles.map(async name =>
   JSON.parse(await readFile(new URL(`../public/${name}`, import.meta.url), 'utf8'))));
 const comments = JSON.parse(await readFile(new URL('../public/comments.json', import.meta.url), 'utf8')).comments;
-const sessionHero = async slug => {
-  const base = new URL('../public/images/training/', import.meta.url);
-  let ext = null;
-  for (const candidate of ['webp', 'jpg', 'jpeg']) {
-    try {
-      await access(new URL(`${slug}.${candidate}`, base));
-      ext = candidate;
-      break;
-    } catch {}
-  }
-  if (!ext) return '';
-  let alt = '';
-  try { alt = (await readFile(new URL(`${slug}.txt`, base), 'utf8')).trim(); } catch {}
-  return `<figure class="session-hero"><img src="/images/training/${esc(slug)}.${ext}" alt="${esc(alt)}"></figure>\n`;
-};
 const km1 = meters => `${(Math.round(meters / 100) / 10).toFixed(1)} km`; // 小数第一位（第二位で四捨五入）
 const distance = km1;
 const mdw = (date, weekday) => `${Number(date.slice(5, 7))}/${Number(date.slice(8))}（${weekday}）`;
@@ -122,16 +170,26 @@ for (const session of training.sessions) {
     if (!Array.isArray(c[key]) || !c[key].length || c[key].some(item => typeof item !== 'string' || !item)) throw new Error(`Invalid comment ${key}: ${session.slug}`);
   }
   const commentList = items => `<ul>${items.map(item=>`<li>${esc(item)}</li>`).join('')}</ul>`;
-  const hero = await sessionHero(session.slug);
-  await writeFile(new URL(`${session.slug}.html`, trainingDir), shell(jpDate(session.date, session.weekday), `${back}<article data-training-slug="${esc(session.slug)}">
-${hero}<h1>${esc(jpDate(session.date, session.weekday))}</h1><p class="date">${esc(session.start_time)}スタート</p>
+  const hero = await heroAsset('training', session.slug);
+  const title = jpDate(session.date, session.weekday);
+  const head = hero ? socialHead({
+    title,
+    url: `${SITE}/training/${session.slug}`,
+    image: await renderOg(hero.file, session.slug, [
+      ogDate(session.date),
+      `${(session.distance_m / 1000).toFixed(2)} km`,
+      `${paceText(session.elapsed_s / session.distance_m * 1000)} /km`,
+    ]),
+  }) : '';
+  await writeFile(new URL(`${session.slug}.html`, trainingDir), shell(title, `${back}<article data-training-slug="${esc(session.slug)}">
+${hero ? hero.html : ''}<h1>${esc(title)}</h1><p class="date">${esc(session.start_time)}スタート</p>
 <section><h2>結果</h2><dl class="times">${metric('距離',distance(session.distance_m))}${metric('経過時間',duration(session.elapsed_s))}${metric('平均ペース',avgPace(session))}</dl>
 <dl class="metrics">${metric('平均心拍',`${session.avg_hr} bpm`)}${metric('最大心拍',`${session.max_hr} bpm`)}${metric('カロリー',`${session.calories.toLocaleString('ja-JP')} kcal`)}${metric('獲得標高',`${session.ascent_m} m`)}</dl>
 <dl class="gear">${metric('シューズ',session.shoe)}${shoeMetric(session.shoe_total_km, session.shoe_target_km)}</dl><p class="note">平均ペースは経過時間基準。</p></section>
 ${sessionDetails(session)}
 <section><h2>グラフ</h2>${status}<div class="small-charts tiles">${chart('pace','ペース（/km）')}${chart('elevation','標高（m）')}${chart('hr','心拍（bpm）')}${chart('cadence','ケイデンス（spm）')}${chart('power','パワー（W）')}${chart('stance','接地時間（ms）')}</div></section>
 <section><h2>1kmスプリット</h2><div class="table-scroll" tabindex="0" role="region" aria-label="1kmスプリット"><table><thead><tr>${['区間','ペース /km','平均心拍'].map(t=>`<th scope="col">${t}</th>`).join('')}</tr></thead><tbody>${session.splits.map(s=>`<tr><th scope="row">${esc(s.km)} km${s.partial_m == null ? '' : `（端数 ${esc(s.partial_m)} m / ${paceText(s.sec)}）`}</th><td>${paceText(s.pace_s_km ?? s.sec)}</td><td>${esc(s.hr)} bpm</td></tr>`).join('')}</tbody></table></div></section>
-<section class="manager-comments"><h2>マネージャーのコメント</h2><h3>Menu</h3><p class="comment-menu">${esc(c.menu)}</p><h3>Purpose</h3><p class="comment-purpose">${esc(c.purpose)}</p><h3>Recap</h3><p class="comment-recap">${esc(c.recap)}</p><h3>Good</h3><div class="comment-good">${commentList(c.good)}</div><h3>Next</h3><div class="comment-next">${commentList(c.next)}</div></section></article>`, 'training-charts.js'));
+<section class="manager-comments"><h2>マネージャーのコメント</h2><h3>Menu</h3><p class="comment-menu">${esc(c.menu)}</p><h3>Purpose</h3><p class="comment-purpose">${esc(c.purpose)}</p><h3>Recap</h3><p class="comment-recap">${esc(c.recap)}</p><h3>Good</h3><div class="comment-good">${commentList(c.good)}</div><h3>Next</h3><div class="comment-next">${commentList(c.next)}</div></section></article>`, 'training-charts.js', head));
 }
 console.log(`Generated training index, ${month.ym} and ${training.sessions.length} session pages`);
 }

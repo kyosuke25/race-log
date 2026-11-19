@@ -34,7 +34,8 @@ python3 scripts/prep/prep_training.py
 - [コーチのペルソナ](coach-persona.md) に厳密に従う。作成前に「相手の前提」の対象月や次のレースなどが当月の文脈と合っているか確認する。ずれがあればペルソナを独断で書き換えず、その旨を作業報告に明記する。
 - `public/comments.json` の `comments` 配下に slug をキーとして追加する。各値は `menu`（文字列）、`purpose`（文字列）、`recap`（文字列）、`good`（配列）、`next`（配列）を持つオブジェクト。ページの見出しは英語の Menu / Purpose / Recap / Good / Next。`build.mjs` はこのファイルを直接読み、対象の slug にコメントがなければビルドが失敗する。
 - 新規セッション分だけ作成し、既存のコメントは変更しない。数値を根拠に評価し、ペースの秒/km は「分：秒/km」に換算して記載する。評価は経過時間を基準にする。
-- ヒーロー画像は `public/images/training/<slug>.webp`（なければ `<slug>.jpg`）に置き、同名の `.txt` に alt を1行書く。ファイルがなければページは従来どおり。
+- ヒーロー画像は `public/images/training/<slug>.webp`（なければ `<slug>.jpg`）に置き、同名の `.txt` に alt を1行書く。ファイルがなければページは従来どおり。レースは `public/images/races/<slug>.webp`（なければ `.jpg`）と同じ `.txt`。
+- ヒーローがあるページはビルド時に `public/images/og/<slug>.jpg`（1200×630）を作る。ヒーローをカバーで敷き、下部のグラデーションの上へ、日付・距離・ペースだけを Barlow Condensed で載せる。トレーニングの距離はメートルを km にして小数第2位、ペースは経過時間基準。福岡は公式ネットと 42.195 km。`og:image` は `https://run.kyosuke.tokyo/images/og/<slug>.jpg`。ヒーローが無いページには付けない。
 
 ## 手順4　build
 
