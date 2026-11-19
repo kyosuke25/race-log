@@ -35,7 +35,7 @@ python3 scripts/prep/prep_training.py
 - `public/comments.json` の `comments` 配下に slug をキーとして追加する。各値は `menu`（文字列）、`purpose`（文字列）、`recap`（文字列）、`good`（配列）、`next`（配列）を持つオブジェクト。ページの見出しは英語の Menu / Purpose / Recap / Good / Next。`build.mjs` はこのファイルを直接読み、対象の slug にコメントがなければビルドが失敗する。
 - 新規セッション分だけ作成し、既存のコメントは変更しない。数値を根拠に評価し、ペースの秒/km は「分：秒/km」に換算して記載する。評価は経過時間を基準にする。
 - ヒーロー画像は `public/images/training/<slug>.webp`（なければ `<slug>.jpg`）に置き、同名の `.txt` に alt を1行書く。ファイルがなければページは従来どおり。レースは `public/images/races/<slug>.webp`（なければ `.jpg`）と同じ `.txt`。
-- ヒーローがあるページはビルド時に `public/images/og/<slug>.jpg`（1200×630）を作る。ヒーローをカバーで敷き、下部のグラデーションの上へ、日付・距離・ペースだけを Barlow Condensed で載せる。トレーニングの距離はメートルを km にして小数第2位、ペースは経過時間基準。福岡は公式ネットと 42.195 km。`og:image` は `https://run.kyosuke.tokyo/images/og/<slug>.jpg`。ヒーローが無いページには付けない。
+- ヒーローがあるページはビルド時に `public/images/og/<slug>.jpg`（1200×630）を作る。ヒーローをカバーで敷き、下部のグラデーションの上へ、日付・距離・ペースだけを Barlow Condensed で載せる。トレーニングの距離はメートルを km にして小数第2位、ペースは経過時間基準。福岡は公式ネットと 42.195 km。`og:image` は `https://run.kyosuke.tokyo/images/og/<slug>.jpg`。ヒーローが無いページには付けない。生成には ffmpeg が必要で、デプロイの CI でも入れる。
 
 ## 手順4　build
 

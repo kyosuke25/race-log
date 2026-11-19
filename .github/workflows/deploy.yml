@@ -21,6 +21,8 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - name: Install ffmpeg for OGP images
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - run: node scripts/build.mjs
       - name: Deploy to personal account
         env:
