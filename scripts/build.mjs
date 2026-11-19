@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, readdir, access } from 'node:fs/promises';
 const d = JSON.parse(await readFile(new URL('../public/data.json', import.meta.url), 'utf8'));
 const raceSession = d.session;
 const m = {...d.meta, ...raceSession.race,
@@ -67,6 +67,21 @@ if (!trainingFiles.length) throw new Error('No training month data found');
 const trainingMonths = await Promise.all(trainingFiles.map(async name =>
   JSON.parse(await readFile(new URL(`../public/${name}`, import.meta.url), 'utf8'))));
 const comments = JSON.parse(await readFile(new URL('../public/comments.json', import.meta.url), 'utf8')).comments;
+const sessionHero = async slug => {
+  const base = new URL('../public/images/training/', import.meta.url);
+  let ext = null;
+  for (const candidate of ['webp', 'jpg', 'jpeg']) {
+    try {
+      await access(new URL(`${slug}.${candidate}`, base));
+      ext = candidate;
+      break;
+    } catch {}
+  }
+  if (!ext) return '';
+  let alt = '';
+  try { alt = (await readFile(new URL(`${slug}.txt`, base), 'utf8')).trim(); } catch {}
+  return `<figure class="session-hero"><img src="/images/training/${esc(slug)}.${ext}" alt="${esc(alt)}"></figure>\n`;
+};
 const km1 = meters => `${(Math.round(meters / 100) / 10).toFixed(1)} km`; // 小数第一位（第二位で四捨五入）
 const distance = km1;
 const mdw = (date, weekday) => `${Number(date.slice(5, 7))}/${Number(date.slice(8))}（${weekday}）`;
@@ -107,8 +122,9 @@ for (const session of training.sessions) {
     if (!Array.isArray(c[key]) || !c[key].length || c[key].some(item => typeof item !== 'string' || !item)) throw new Error(`Invalid comment ${key}: ${session.slug}`);
   }
   const commentList = items => `<ul>${items.map(item=>`<li>${esc(item)}</li>`).join('')}</ul>`;
+  const hero = await sessionHero(session.slug);
   await writeFile(new URL(`${session.slug}.html`, trainingDir), shell(jpDate(session.date, session.weekday), `${back}<article data-training-slug="${esc(session.slug)}">
-<h1>${esc(jpDate(session.date, session.weekday))}</h1><p class="date">${esc(session.start_time)}スタート</p>
+${hero}<h1>${esc(jpDate(session.date, session.weekday))}</h1><p class="date">${esc(session.start_time)}スタート</p>
 <section><h2>結果</h2><dl class="times">${metric('距離',distance(session.distance_m))}${metric('経過時間',duration(session.elapsed_s))}${metric('平均ペース',avgPace(session))}</dl>
 <dl class="metrics">${metric('平均心拍',`${session.avg_hr} bpm`)}${metric('最大心拍',`${session.max_hr} bpm`)}${metric('カロリー',`${session.calories.toLocaleString('ja-JP')} kcal`)}${metric('獲得標高',`${session.ascent_m} m`)}</dl>
 <dl class="gear">${metric('シューズ',session.shoe)}${shoeMetric(session.shoe_total_km, session.shoe_target_km)}</dl><p class="note">平均ペースは経過時間基準。</p></section>
