@@ -96,6 +96,11 @@ def prepare(base, race_mode=False):
         runs = [it for it in hist if it.get('gearId') == gid]
         runs.sort(key=lambda it: int(it['end_time']) - int(it['run_time']))
         total = float(git.get('totalDistanceM') or 0)
+        # list_gear can lag a run that is already in history. Use the larger
+        # figure so that run's cumulative includes its own distance.
+        hist_sum = sum(float(it['dis']) for it in runs)
+        if hist_sum > total:
+            total = hist_sum
         later = 0.0
         for it in reversed(runs):
             shoe_total_after[it['trackid']] = total - later
@@ -133,9 +138,10 @@ def prepare(base, race_mode=False):
         start = datetime.datetime.fromtimestamp(int(it['end_time']) - int(it['run_time']), JST)
         # run_time excludes pauses, so end_time - run_time is later than the
         # recorded start. These sessions use the recorded start: 11/17 and 11/18
-        # are already published that way, and 11/19 starts at 07:36:42 JST.
-        # Other published sessions stay on end_time - run_time.
-        if trackid in {'1794868431', '1795004813', '1795041402'}:
+        # are already published that way, 11/19 starts at 07:36:42 JST, and
+        # 11/20 starts at 07:20:19 JST. Other published sessions stay on
+        # end_time - run_time.
+        if trackid in {'1794868431', '1795004813', '1795041402', '1795126819'}:
             start = datetime.datetime.fromtimestamp(int(t['start_time_unix']), JST)
         # cumulative GPS distance
         cum = {}
