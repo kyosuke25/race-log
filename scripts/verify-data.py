@@ -90,10 +90,14 @@ for s in sessions:
     for key, points in s['series'].items():
         assert points and any(v is not None for _, v in points), (s['slug'], key)
         assert all(x == 50 + i * 100 for i, (x, _) in enumerate(points))
-    assert s['elevation'] and max(x for x, _ in s['elevation']) <= s['distance_m']/1000 + .1
     assert [sp['km'] for sp in s['splits']] == list(range(1,len(s['splits'])+1))
     assert all({'km','sec','hr'} <= sp.keys() for sp in s['splits'])
-    assert s['splits'][-1]['partial_m'] > 0
+    partial_m = s['splits'][-1]['partial_m']
+    assert 0 < partial_m <= 1000
+    gps_distance_km = len(s['splits']) - 1 + partial_m / 1000
+    # Splits and elevation share the GPS distance. Allow for rounding to meters
+    # in splits and hundredths of a kilometer in the race elevation profile.
+    assert s['elevation'] and max(x for x, _ in s['elevation']) <= gps_distance_km + .006, s['slug']
     assert s['kind'] in ('race', 'training')
 
 def private_keys(value):
@@ -124,15 +128,16 @@ expected = [
     (11006, 4613, 37.5),
     (5049, 2107, 116.3),
     (10400, 3697, 18.5),
+    (13522, 7980, None),
 ]
 assert [(s['distance_m'],s['elapsed_s'],s['shoe_total_km']) for s in training['sessions']] == expected
-assert training['month']['training_km'] == 68.28
-assert training['month']['training_time_s'] == 27106
-assert training['month']['total_km_with_race'] == 110.74
+assert training['month']['training_km'] == 81.8
+assert training['month']['training_time_s'] == 35086
+assert training['month']['total_km_with_race'] == 124.26
 assert training['month']['race']['shoe_total_km'] == r['shoe_total_km']
-assert training['sessions'][-1]['track_id'] == '1795126819'
-assert training['sessions'][-1]['start_time'] == '07:20'
-assert training['month']['training_sessions'] == 10
+assert training['sessions'][-1]['track_id'] == '1795228002'
+assert training['sessions'][-1]['start_time'] == '11:26'
+assert training['month']['training_sessions'] == 11
 assert training['gear']
 detail_labels = {
     'vo2max': ('VO2max', ''), 'aerobic_te': ('有酸素TE', ''),
@@ -146,7 +151,9 @@ detail_labels = {
 for s in sessions:
     path = root / 'public' / ('fukuoka-2026.html' if s['kind']=='race' else f'training/{s["slug"]}.html')
     html = path.read_text()
-    assert s['shoe'] in html
+    shoe = s['shoe'] if s['shoe'] is not None else '—'
+    assert f'<dt>シューズ</dt><dd>{html_esc(shoe)}</dd>' in html, s['slug']
+    assert ('<dt>シューズ累計／目標</dt>' in html) == (s['shoe'] is not None), s['slug']
     a = s['aggregates']
     assert ('<h2 id="details">詳細データ</h2>' in html) == any(k in a for k in detail_labels)
     for key, (label, unit) in detail_labels.items():
@@ -174,4 +181,4 @@ for s in sessions:
         assert '<dt>総歩数</dt><dd>41666 歩</dd>' in html
         assert '<dt>上限 153 bpm</dt><dd>9116 秒（' in html
     assert html.count('<canvas ') == (7 if s['kind']=='race' else 6)
-print('PASS: 11 unified sessions; 9 sensor series each; history summary values and invalid-value omission; elevation km; partial splits; all aggregates; no coordinate/private keys; published headlines; generated page shoes and charts; optional detail tiles and HR zone seconds/percentages/bars on all pages; Fukuoka VO2max 49, steps 41666, 153 bpm / 9116 seconds; raw weather omitted; training comments are menu/purpose/recap/good/next.')
+print(f'PASS: {len(sessions)} unified sessions; 9 sensor series each; history summary values and invalid-value omission; elevation km; partial splits; all aggregates; no coordinate/private keys; published headlines; generated page shoes and charts; optional detail tiles and HR zone seconds/percentages/bars on all pages; Fukuoka VO2max 49, steps 41666, 153 bpm / 9116 seconds; raw weather omitted; training comments are menu/purpose/recap/good/next.')
