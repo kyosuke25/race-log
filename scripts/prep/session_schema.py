@@ -138,10 +138,10 @@ def prepare(base, race_mode=False):
         start = datetime.datetime.fromtimestamp(int(it['end_time']) - int(it['run_time']), JST)
         # run_time excludes pauses, so end_time - run_time is later than the
         # recorded start. These sessions use the recorded start: 11/17 and 11/18
-        # are already published that way, 11/19 starts at 07:36:42 JST, and
-        # 11/20 starts at 07:20:19 JST. Other published sessions stay on
-        # end_time - run_time.
-        if trackid in {'1794868431', '1795004813', '1795041402', '1795126819'}:
+        # are already published that way, 11/19 starts at 07:36:42 JST,
+        # 11/20 at 07:20:19 JST, and 11/21 at 11:26:42 JST. Other published
+        # sessions stay on end_time - run_time.
+        if trackid in {'1794868431', '1795004813', '1795041402', '1795126819', '1795228002'}:
             start = datetime.datetime.fromtimestamp(int(t['start_time_unix']), JST)
         # cumulative GPS distance
         cum = {}
