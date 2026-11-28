@@ -141,6 +141,7 @@ def prepare(base, race_mode=False):
         if trackid in {
             '1794868431', '1795004813', '1795041402', '1795126819', '1795228002',
             '1795416468', '1795472674', '1795559161', '1795647160', '1795732373',
+            '1795853517',
         }:
             start = datetime.datetime.fromtimestamp(int(t['start_time_unix']), JST)
         # cumulative GPS distance
