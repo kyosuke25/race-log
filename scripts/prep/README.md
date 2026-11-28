@@ -21,20 +21,22 @@ Python標準ライブラリのみ使用。元のprepスクリプトは不要。
 
 `data.json.session` と `training-2026-11.json.sessions[]` が共通スキーマ。
 日付と開始時刻はJST。`label` は既存の朝ラン等の表示ラベルを保持。
-距離・経過時間のサマリは既存公開値との互換のためZepp履歴値を保持する。
-スプリットと系列の距離はGPS haversine累積、時刻は経過offsetの線形補間。
+練習の `time_basis` は `moving`。サマリは Zepp 履歴の距離と `moving_s`（`run_time`）を使う。
+練習の `elapsed_s` は停止込みの `totalTimeWithMillis` を秒に換算した参考値。
+スプリットと系列は `metadata.currentDistance`（Δ秒、累積cm）の距離を使い、
+`metadata.pause` と距離の進まないセンサー欠落区間を除いた時刻を距離境界で線形補間する。
 100m系列は完全な100m区間の中央距離（m）。平均は区間内の有効サンプル平均。
 ストライドはm単位で小数3桁、他のセンサー平均は小数1桁。
 欠測センサー値はnull。elevationの距離単位は全セッションでkm、標高はm。
 1km未満の最終区間もpartial_mを付け、pace_s_kmで距離補正する。
 
 `aggregates` は旧coach_metricsの計算法を維持。心拍・ケイデンスの前後半は
-経過時間の半分、ペースの前後半は完走1kmスプリットの本数を半分に分ける。
+各セッションの計算に使う時計の半分、ペースの前後半は完走1kmスプリットの本数を半分に分ける。
 心拍ドリフトは後半心拍/前半心拍の増加率。最速・最遅は完走1kmのみ。
 
-福岡のsession.elapsed_sは既存月次JSONの14,269秒（3:57:49）を保持。
-公式ネットはrace.netの3:57:48。GPS timelineの最終offsetは14,270秒。
-3つは元データから異なるため、相互に置き換えない。
+福岡の `time_basis` は `elapsed`。結果の `elapsed_s` と月次のレース行には
+公式ネット3:57:48（14,268秒）を使う。ペースは公認距離42.195kmで算出する。
+ウォッチ由来のスプリット・系列は、経過offset（最終14,270秒）とGPS haversine累積距離を使う。
 従来のレース表示用km / splits5k / elevation / yoy5k / metaも保持する。
 5km表は丸め前のGPS補間時刻から計算し、既存表示と完全一致させている。
 これらは互換用の公開派生データで、セッションの正規スキーマではない。

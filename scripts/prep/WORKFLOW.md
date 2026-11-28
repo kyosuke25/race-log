@@ -6,6 +6,11 @@
 
 対象はトレーニング記録の月次ページと、そこからリンクするセッション記事。入力元は `~/workspace/training-page` とし、生データはリポジトリに入れない。レース記事は `prep_fukuoka.py` と `race_metadata.json` を使う別フローで、この手順の対象外。
 
+## 時間の基準
+
+- 練習はムービングタイム（moving）を基準に評価・表示する。見出し、平均ペース、1 km スプリット、ペースグラフ、月次の練習累計に適用する。経過時間を併記する場合は、停止込みのウォッチ計測値に「参考・経過時間」と付ける。
+- レースは停止を含む経過時間（elapsed）が基準。結果と月次一覧のレース行は公式ネットタイムを使い、平均ペースは公認距離で計算する。ウォッチ由来のスプリットとグラフも停止を含む計測時間で算出する。
+
 ## 手順1　Zepp から取得
 
 次の形式でヘルパーを呼び出す。`<tool>` と `<args.json>` はツール名と引数ファイルのパスに置き換える。
@@ -27,15 +32,15 @@ python3 ~/workspace/custom-connectors/custom.zepp/bin/client.py call-tool --name
 python3 scripts/prep/prep_training.py
 ```
 
-距離と時間のサマリには Zepp の履歴値を使う。`elapsed_s` には履歴の `run_time` を採用し、総経過の `totalTimeWithMillis` は使わない。系列とスプリットは GPS から算出する。詳細は [ローカルデータ整形](README.md) を参照する。
+距離と `moving_s` には Zepp の履歴値を使い、練習の `elapsed_s` には停止込みの `totalTimeWithMillis` を秒に換算して格納する。系列とスプリットは `metadata.currentDistance` を線形補間し、`metadata.pause` と距離が進まないタイムラインの空白を除く。再生成時に取得する生データはリポジトリ外の `mktemp -d` に保存し、`--source` と `--training-source` で指定する。詳細は [ローカルデータ整形](README.md) を参照する。
 
 ## 手順3　コメント
 
 - [コーチのペルソナ](coach-persona.md) に厳密に従う。作成前に「相手の前提」の対象月や次のレースなどが当月の文脈と合っているか確認する。ずれがあればペルソナを独断で書き換えず、その旨を作業報告に明記する。
 - `public/comments.json` の `comments` 配下に slug をキーとして追加する。各値は `menu`（文字列）、`purpose`（文字列）、`recap`（文字列）、`good`（配列）、`next`（配列）を持つオブジェクト。ページの見出しは英語の Menu / Purpose / Recap / Good / Next。`build.mjs` はこのファイルを直接読み、対象の slug にコメントがなければビルドが失敗する。
-- 新規セッション分だけ作成し、既存のコメントは変更しない。数値を根拠に評価し、ペースの秒/km は「分：秒/km」に換算して記載する。評価は経過時間を基準にする。
+- 練習はムービングタイムの数値を根拠に評価し、ペースの秒/km は「分：秒/km」に換算する。コメントに出す km 番号と値はセッション記事のスプリット表に合わせる。本練などの区間を指す場合は「本練の入り」「終盤」のように書く。ページやコメントには作業履歴を書かない。
 - ヒーロー画像は `public/images/training/<slug>.webp`（なければ `<slug>.jpg`）に置き、同名の `.txt` に alt を1行書く。ファイルがなければページは従来どおり。レースは `public/images/races/<slug>.webp`（なければ `.jpg`）と同じ `.txt`。
-- ヒーローがあるページはビルド時に `public/images/og/<slug>.jpg`（1200×630）を作る。ヒーローをカバーで敷き、下部のグラデーションの上へ、日付・距離・ペースだけを Barlow Condensed で載せる。トレーニングの距離はメートルを km にして小数第2位、ペースは経過時間基準。福岡は公式ネットと 42.195 km。`og:image` は `https://run.kyosuke.tokyo/images/og/<slug>.jpg`。ヒーローが無いページには付けない。生成には ffmpeg が必要で、デプロイの CI でも入れる。
+- ヒーローがあるページはビルド時に `public/images/og/<slug>.jpg`（1200×630）を作る。ヒーローをカバーで敷き、下部のグラデーションの上へ、日付・距離・ペースだけを Barlow Condensed で載せる。トレーニングの距離はメートルを km にして小数第2位、ペースはムービングタイム基準。福岡は公式ネットと 42.195 km。`og:image` は `https://run.kyosuke.tokyo/images/og/<slug>.jpg`。ヒーローが無いページには付けない。生成には ffmpeg が必要で、デプロイの CI でも入れる。
 
 ### ヒーロー画像の猫と alt
 
@@ -58,7 +63,7 @@ node scripts/build.mjs
 
 セッション追加時は `scripts/verify-data.py` のハードコードされた期待値を更新する。値を確定する前に、生成 JSON と `list_workouts_raw.json` の Zepp 履歴を必ず突き合わせる。
 
-- `expected` のセッション一覧（距離、`elapsed_s`、シューズ累計）
+- `expected` のセッション一覧（距離、`moving_s`、シューズ累計）
 - 月次集計の `training_km`、`training_time_s`、`total_km_with_race`
 - 最終セッションの `track_id` と `start_time`
 - `training_sessions` の件数
@@ -84,7 +89,7 @@ python3 scripts/verify-data.py
 
 ## 品質チェックリスト
 
-- [ ] 数値が Zepp 履歴と一致する（距離、`elapsed_s`、心拍、シューズ累計）。
+- [ ] 数値が Zepp 履歴と一致する（距離、`moving_s`、心拍、シューズ累計）。スプリット合計がムービングタイムと数秒以内で一致する。
 - [ ] 新規の全セッションにコメントがある。
 - [ ] `verify-data.py` が `PASS` する。
 - [ ] レース側ファイルに差分がない。

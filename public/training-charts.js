@@ -22,7 +22,7 @@
       const session = training.sessions.find(s=>s.slug===article.dataset.trainingSlug);
       if (!session) throw new Error('Session not found');
       const series = (key,label,color) => ({label,data:session.series[key].map(([m,y])=>({x:m/1000,y})),borderColor:color});
-      draw('pace',[series('pace','ペース','#e2512a')],{unit:'分:秒 /km',reverse:true,paceAxis:true});
+      draw('pace',[series('pace','ペース（ムービングタイム基準）','#e2512a')],{unit:'分:秒 /km',reverse:true,paceAxis:true});
       draw('elevation',[{label:'標高',data:session.elevation.map(([x,y])=>({x,y})),borderColor:'#16191d',backgroundColor:'#16191d30',fill:'origin'}],{unit:'m'});
       draw('hr',[series('hr','心拍','#c0392b')],{unit:'bpm'});
       draw('cadence',[series('cadence','ケイデンス','#e2512a')],{unit:'spm'});

@@ -100,8 +100,8 @@ const raceHead = raceHero ? socialHead({
   url: `${SITE}/${raceSession.slug}`,
   image: await renderOg(raceHero.file, raceSession.slug, [
     ogDate(raceSession.date),
-    '42.195 km',
-    `${paceText(clockSeconds(m.net) / 42.195)} /km`,
+    `${m.course_km} km`,
+    `${paceText(clockSeconds(m.net) / m.course_km)} /km`,
   ]),
 }) : '';
 await writeFile(new URL('../public/fukuoka-2026.html', import.meta.url), shell(m.race, `<article>
@@ -117,7 +117,7 @@ ${raceHero ? raceHero.html : ''}<h1>${esc(m.race)}</h1><p class="date">${esc(m.d
 <h3>5kmスプリット</h3><table><thead><tr><th scope="col">区間</th><th scope="col">タイム</th><th scope="col">ペース /km</th></tr></thead><tbody>${d.splits5k.map(s=>`<tr><th scope="row">${esc(s.range)}</th><td>${esc(s.time)}</td><td>${esc(s.pace)}</td></tr>`).join('')}</tbody></table>
 <h3>参考値</h3><dl class="metrics">${metric('平均心拍',m.avg_hr+' bpm')}${metric('最大心拍',m.max_hr+' bpm')}${metric('平均ケイデンス',m.avg_cadence_spm+' spm')}${metric('消費カロリー',m.calories_kcal.toLocaleString('ja-JP')+' kcal')}</dl>
 <dl class="gear">${metric('シューズ',m.shoes)}${shoeMetric(m.shoe_total_km, m.shoe_target_km)}${metric('ウォッチ',m.watch)}</dl>
-<p class="note">スプリットとグラフはウォッチのGPS計測ベース。タイムは公式ネット。</p></section>
+<p class="note">スプリットとグラフは、停止を含むウォッチの経過時間とGPS距離を使用。結果は公式ネットタイム。</p></section>
 ${sessionDetails(raceSession)}
 <section aria-labelledby="graphs"><h2 id="graphs">グラフ</h2><p id="chart-status" role="status">グラフを読み込んでいます。</p><noscript><p>グラフの表示にはJavaScriptが必要です。<a href="data.json">計測データ</a></p></noscript>
 <div class="small-charts tiles">${chart('pace','ペース（/km）')}${chart('elevation','標高（m）')}${chart('hr','心拍（bpm）')}${chart('cadence','ケイデンス（spm）')}${chart('power','パワー（W）')}${chart('stance','接地時間（ms）')}</div>
@@ -140,7 +140,7 @@ const duration = seconds => {
   const s = Math.round(seconds);
   return `${Math.floor(s / 3600)}:${String(Math.floor(s % 3600 / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 };
-const avgPace = session => `${paceText(session.elapsed_s / session.distance_m * 1000)} /km`;
+const avgPace = seconds => `${paceText(seconds)} /km`;
 const trainingDir = new URL('../public/training/', import.meta.url);
 await mkdir(trainingDir, {recursive: true});
 const monthIndex = `<ul class="posts">${trainingMonths.map(({month}) => `<li><a href="/training/${esc(month.ym)}">${esc(month.ym)}</a></li>`).join('')}</ul>`;
@@ -151,10 +151,17 @@ const month = training.month;
 const back = `<p class="breadcrumb"><a href="/training/${esc(month.ym)}">${esc(month.ym)}</a></p>`;
 const status = '<p id="chart-status" role="status">グラフを読み込んでいます。</p><noscript><p>グラフの表示にはJavaScriptが必要です。</p></noscript>';
 
-const rows = [...training.sessions.map(s => ({...s, href: `/training/${s.slug}`})), {...month.race, href: month.race.link}].sort((a,b) => a.date.localeCompare(b.date));
+const rows = training.sessions.map(s => ({
+  ...s, href: `/training/${s.slug}`, time: s.moving_s, pace: s.aggregates.avg_pace_s_km,
+}));
+if (month.race) rows.push({
+  ...month.race, href: month.race.link, time: month.race.elapsed_s, pace: month.race.pace_s_km,
+});
+rows.sort((a,b) => a.date.localeCompare(b.date));
 const latestByShoe = new Map(rows.filter(s => s.shoe != null).map(s => [s.shoe, s]));
-const monthSummary = `<section><h2>サマリ</h2><dl class="metrics month-summary">${metric('練習セッション数',`${month.training_sessions} 件`)}${metric('練習距離',km1(month.training_km*1000))}${metric('累計時間',duration(month.training_time_s))}${metric('総距離',km1(month.total_km_with_race*1000))}</dl></section>`;
-const sessionTable = `<section><h2>セッション一覧</h2><div class="table-scroll" tabindex="0" role="region" aria-label="セッション一覧"><table class="session-table"><thead><tr>${['日付','開始','距離','経過時間','平均ペース','平均心拍','シューズ'].map(t=>`<th scope="col">${t}</th>`).join('')}</tr></thead><tbody>${rows.map(s=>`<tr><th scope="row"><a href="${esc(s.href)}">${esc(mdw(s.date, s.weekday))}</a></th><td>${esc(s.start_time ?? '—')}</td><td>${distance(s.distance_m)}</td><td>${duration(s.elapsed_s)}</td><td>${avgPace(s)}</td><td>${s.avg_hr == null ? '—' : `${esc(s.avg_hr)} bpm`}</td><td>${esc(s.shoe ?? '—')}</td></tr>`).join('')}</tbody></table></div><p class="note">距離・経過時間はウォッチ計測。平均ペースは経過時間基準。</p></section>`;
+const monthSummary = `<section><h2>サマリ</h2><dl class="metrics month-summary">${metric('練習セッション数',`${month.training_sessions} 件`)}${metric('練習距離',km1(month.training_km*1000))}${metric('練習の累計ムービングタイム',duration(month.training_time_s))}${metric('総距離',km1(month.total_km_with_race*1000))}</dl></section>`;
+const timeColumn = month.race ? 'ムービングタイム／公式ネット' : 'ムービングタイム';
+const sessionTable = `<section><h2>セッション一覧</h2><div class="table-scroll" tabindex="0" role="region" aria-label="セッション一覧"><table class="session-table"><thead><tr>${['日付','開始','距離',timeColumn,'平均ペース','平均心拍','シューズ'].map(t=>`<th scope="col">${t}</th>`).join('')}</tr></thead><tbody>${rows.map(s=>`<tr><th scope="row"><a href="${esc(s.href)}">${esc(mdw(s.date, s.weekday))}</a></th><td>${esc(s.start_time ?? '—')}</td><td>${distance(s.distance_m)}</td><td>${duration(s.time)}</td><td>${avgPace(s.pace)}</td><td>${s.avg_hr == null ? '—' : `${esc(s.avg_hr)} bpm`}</td><td>${esc(s.shoe ?? '—')}</td></tr>`).join('')}</tbody></table></div><p class="note">距離はウォッチ計測。練習の平均ペースはムービングタイム基準。${month.race ? 'レースは公式ネットタイムと公認距離から算出。' : ''}</p></section>`;
 await writeFile(new URL(`${month.ym}.html`, trainingDir), shell(`${month.ym} トレーニング記録`, `<article data-training-month="${esc(month.ym)}">
 <h1>${esc(month.ym)} トレーニング記録</h1>
 ${monthSummary}
@@ -180,17 +187,17 @@ for (const session of training.sessions) {
     image: await renderOg(hero.file, session.slug, [
       ogDate(session.date),
       `${(session.distance_m / 1000).toFixed(2)} km`,
-      `${paceText(session.elapsed_s / session.distance_m * 1000)} /km`,
+      avgPace(session.aggregates.avg_pace_s_km),
     ]),
   }) : '';
   await writeFile(new URL(`${session.slug}.html`, trainingDir), shell(title, `${back}<article data-training-slug="${esc(session.slug)}">
 ${hero ? hero.html : ''}<h1>${esc(title)}</h1><p class="date">${esc(session.start_time)}スタート</p>
-<section><h2>結果</h2><dl class="times">${metric('距離',distance(session.distance_m))}${metric('経過時間',duration(session.elapsed_s))}${metric('平均ペース',avgPace(session))}</dl>
+<section><h2>結果</h2><dl class="times">${metric('距離',distance(session.distance_m))}${metric('ムービングタイム',duration(session.moving_s))}${metric('平均ペース',avgPace(session.aggregates.avg_pace_s_km))}</dl>
 <dl class="metrics">${metric('平均心拍',`${session.avg_hr} bpm`)}${metric('最大心拍',`${session.max_hr} bpm`)}${metric('カロリー',`${session.calories.toLocaleString('ja-JP')} kcal`)}${metric('獲得標高',`${session.ascent_m} m`)}</dl>
-<dl class="gear">${metric('シューズ',session.shoe ?? '—')}${session.shoe == null ? '' : shoeMetric(session.shoe_total_km, session.shoe_target_km)}</dl><p class="note">平均ペースは経過時間基準。</p></section>
+<dl class="gear">${metric('シューズ',session.shoe ?? '—')}${session.shoe == null ? '' : shoeMetric(session.shoe_total_km, session.shoe_target_km)}</dl><p class="note">平均ペースとスプリットはムービングタイム基準。</p></section>
 ${sessionDetails(session)}
 <section><h2>グラフ</h2>${status}<div class="small-charts tiles">${chart('pace','ペース（/km）')}${chart('elevation','標高（m）')}${chart('hr','心拍（bpm）')}${chart('cadence','ケイデンス（spm）')}${chart('power','パワー（W）')}${chart('stance','接地時間（ms）')}</div></section>
-<section><h2>1kmスプリット</h2><div class="table-scroll" tabindex="0" role="region" aria-label="1kmスプリット"><table><thead><tr>${['区間','ペース /km','平均心拍'].map(t=>`<th scope="col">${t}</th>`).join('')}</tr></thead><tbody>${session.splits.map(s=>`<tr><th scope="row">${esc(s.km)} km${s.partial_m == null ? '' : `（端数 ${esc(s.partial_m)} m / ${paceText(s.sec)}）`}</th><td>${paceText(s.pace_s_km ?? s.sec)}</td><td>${esc(s.hr)} bpm</td></tr>`).join('')}</tbody></table></div></section>
+<section><h2>1kmスプリット</h2><div class="table-scroll" tabindex="0" role="region" aria-label="1kmスプリット"><table><thead><tr>${['区間','ペース /km','平均心拍'].map(t=>`<th scope="col">${t}</th>`).join('')}</tr></thead><tbody>${session.splits.map(s=>`<tr><th scope="row">${esc(s.km)} km${s.partial_m == null ? '' : `（端数 ${esc(s.partial_m)} m / ${paceText(s.sec)}）`}</th><td>${paceText(s.pace_s_km ?? s.sec)}</td><td>${s.hr == null ? '—' : `${esc(s.hr)} bpm`}</td></tr>`).join('')}</tbody></table></div></section>
 <section class="manager-comments"><h2>マネージャーのコメント</h2><h3>Menu</h3><p class="comment-menu">${esc(c.menu)}</p><h3>Purpose</h3><p class="comment-purpose">${esc(c.purpose)}</p><h3>Recap</h3><p class="comment-recap">${esc(c.recap)}</p><h3>Good</h3><div class="comment-good">${commentList(c.good)}</div><h3>Next</h3><div class="comment-next">${commentList(c.next)}</div></section></article>`, 'training-charts.js', head));
 }
 console.log(`Generated training index, ${month.ym} and ${training.sessions.length} session pages`);
