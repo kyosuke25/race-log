@@ -23,6 +23,7 @@ const plain = value => JSON.parse(JSON.stringify(value));
 (async () => {
   const raceCharts = await run('charts.js', race, {});
   assert.equal(raceCharts.size, 7);
+  assert.deepEqual(plain(raceCharts.get('pace').datasets[0].data), race.km.map(k=>({x:k.km,y:k.pace_s})));
   assert.deepEqual(plain(raceCharts.get('elevation').datasets[0].data), race.session.elevation.map(([x,y])=>({x,y})));
   for (const session of training.sessions) {
     const charts = await run('training-charts.js', training, {trainingSlug:session.slug});
@@ -32,9 +33,13 @@ const plain = value => JSON.parse(JSON.stringify(value));
       assert.deepEqual(plain(charts.get(id).datasets[0].data),session.series[key].map(([m,y])=>({x:m/1000,y})));
     }
     assert.equal(charts.get('pace').options.reverse,true);
+    assert.equal(charts.get('pace').datasets[0].label,'ペース（ムービングタイム基準）');
+    if (session.slug === '2026-11-28-night') {
+      assert(Math.max(...charts.get('pace').datasets[0].data.map(point=>point.y)) < 9 * 60);
+    }
   }
   const month = await run('training-charts.js', training, {trainingMonth:training.month.ym});
   assert.equal(month.size,2);
   assert.equal(month.get('daily').datasets[0].data.length,30);
-  console.log('PASS: 45 chart adapters execute offline; training series distance conversion; elevation km; reversed pace; monthly charts.');
+  console.log('PASS: race elapsed pace, training moving pace and distance axes, elevation km, reversed pace, and monthly charts.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

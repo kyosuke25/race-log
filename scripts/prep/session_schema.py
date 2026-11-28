@@ -1,10 +1,11 @@
 """Shared Zepp session preparation. Raw coordinates are read locally only.
 
-Headline distance/time retain Zepp history values for published compatibility;
-splits and chart distances use haversine GPS accumulation and elapsed offsets.
+Training uses Zepp distance and a moving clock. Race splits and charts use
+elapsed watch offsets and GPS distance, while race results use the official net.
 Elevation is always expressed in km / m. Missing sensor values remain null.
 """
 import json, math, datetime
+from bisect import bisect_left, bisect_right
 
 # History summary fields share aggregates for race and training.
 SUMMARY_FIELDS = {
@@ -52,7 +53,63 @@ def history_aggregates(item):
     return result
 
 
-def prepare(base, race_mode=False):
+def training_timeline(workout):
+    """Return distance knots and sensor rows on a clock with stops removed."""
+    timeline = sorted(workout['timeline'], key=lambda row: row['offset_s'])
+    finish = timeline[-1]['offset_s']
+    metadata = workout['metadata']
+    knots = {0: 0.0}
+    offset = 0
+    for pair in metadata['currentDistance'].split(';'):
+        if pair:
+            delta, cm = map(int, pair.split(','))
+            offset += delta
+            # The final distance record can be flushed after the workout ends.
+            knots[min(offset, finish)] = cm / 100
+    distances_at = sorted(knots)
+
+    stops = []
+    for record in metadata.get('pause', '').split(';'):
+        if record:
+            unix, seconds, *_ = map(int, record.split(','))
+            start = unix - workout['start_time_unix']
+            end = min(finish, start + seconds)
+            if end > max(0, start):
+                stops.append((max(0, start), end))
+
+    # A missing sensor sample alone is not a stop. Infer a stop when a gap
+    # also has no distance progress. Match logged pauses first, allowing for
+    # the one-second quantization of sensor offsets and pause timestamps.
+    for left, right in zip(timeline, timeline[1:]):
+        start, end = left['offset_s'], right['offset_s']
+        if end - start <= 1:
+            continue
+        if any(start <= stop_end + 1 and end >= stop_start - 1 for stop_start, stop_end in stops):
+            continue
+        before = distances_at[bisect_right(distances_at, start) - 1]
+        after = distances_at[min(bisect_left(distances_at, end), len(distances_at) - 1)]
+        if knots[before] == knots[after]:
+            stops.append((start, end - 1))
+
+    merged = []
+    for start, end in sorted(stops):
+        if merged and start <= merged[-1][1]:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], end))
+        else:
+            merged.append((start, end))
+
+    def moving_offset(offset):
+        return offset - sum(max(0, min(offset, end) - start) for start, end in merged)
+
+    moving_distance = {moving_offset(t): knots[t] for t in distances_at}
+    moving_rows = {
+        moving_offset(row['offset_s']): row for row in timeline
+        if not any(start <= row['offset_s'] < end for start, end in merged)
+    }
+    return moving_distance, moving_rows
+
+
+def prepare(base, race, race_mode=False):
     race_details = {}
     BASE = str(base)
     JST = datetime.timezone(datetime.timedelta(hours=9))
@@ -107,6 +164,8 @@ def prepare(base, race_mode=False):
             later += float(it['dis'])
 
     RACE_ID = '1794093775'  # Fukuoka Marathon 2026 -> race article, not a session page
+    official_seconds = sum(int(part) * 60 ** i for i, part in enumerate(reversed(race['net'].split(':'))))
+    official_pace = round(official_seconds / race['course_km'])
 
     def daypart_label(dt, dist_km):
         if dist_km >= 10:
@@ -144,57 +203,60 @@ def prepare(base, race_mode=False):
             '1795853517',
         }:
             start = datetime.datetime.fromtimestamp(int(t['start_time_unix']), JST)
-        # cumulative GPS distance
-        cum = {}
-        d = 0.0
-        prev = None
-        for r in tl:
-            o = r['offset_s']
-            lat, lon = r.get('latitude'), r.get('longitude')
-            if lat is not None and lon is not None:
-                p = (lat, lon)
-                if prev is not None:
-                    d += hav(prev, p)
-                prev = p
-            cum[o] = d
-        offs = [r['offset_s'] for r in tl]
-        rows = {r['offset_s']: r for r in tl}
-        total_gps = d
+        if race_mode:
+            cum = {}
+            d = 0.0
+            prev = None
+            for r in tl:
+                lat, lon = r.get('latitude'), r.get('longitude')
+                if lat is not None and lon is not None:
+                    p = (lat, lon)
+                    if prev is not None:
+                        d += hav(prev, p)
+                    prev = p
+                cum[r['offset_s']] = d
+            rows = {r['offset_s']: r for r in tl}
+        else:
+            cum, rows = training_timeline(t)
+        offs = list(rows)
+        distance_offsets = list(cum)
+        distances = list(cum.values())
+        total_distance = distances[-1]
+        finish = distance_offsets[-1]
 
         def time_at(dist):
-            prev_o, prev_d = offs[0], cum[offs[0]]
-            for o in offs:
-                dd = cum[o]
-                if dd >= dist:
-                    if dd == prev_d:
-                        return float(o)
-                    return prev_o + (o - prev_o) * (dist - prev_d) / (dd - prev_d)
-                prev_o, prev_d = o, dd
-            return float(offs[-1])
+            i = bisect_left(distances, dist)
+            if i == 0 or i == len(distances):
+                return float(distance_offsets[min(i, len(distances) - 1)])
+            prev_o, o = distance_offsets[i - 1:i + 1]
+            prev_d, dd = distances[i - 1:i + 1]
+            return prev_o + (o - prev_o) * (dist - prev_d) / (dd - prev_d)
 
         def window_avg(field, t0, t1):
             vals = [rows[o][field] for o in offs if t0 <= o < t1 and rows[o].get(field) is not None]
             return round(sum(vals) / len(vals), 3 if field == 'stride_m' else 1) if vals else None
 
-        # 1 km splits (GPS), final partial included
+        # 1 km splits, final partial included
         splits = []
-        full = int(total_gps // 1000)
+        full = int(total_distance // 1000)
         bounds = [time_at(k * 1000) for k in range(full + 1)]
         if race_mode:
             bounds[0] = 0.0
+        elif total_distance == full * 1000:
+            bounds[-1] = finish
         for k in range(full):
             t0, t1 = bounds[k], bounds[k + 1]
             splits.append({'km': k + 1, 'sec': round(t1 - t0), 'hr': window_avg('heart_rate_bpm', t0, t1)})
-        rem = total_gps - full * 1000
+        rem = total_distance - full * 1000
         if rem > 0:
             t0 = bounds[full]
-            t1 = float(offs[-1])
+            t1 = float(finish)
             splits.append({'km': full + 1, 'sec': round(t1 - t0), 'partial_m': round(rem),
                            'pace_s_km': round((t1 - t0) / rem * 1000), 'hr': window_avg('heart_rate_bpm', t0, t1)})
 
         # 100 m buckets: pace / hr / cadence / power / gct / altitude
         series = {'pace': [], 'hr': [], 'cadence': [], 'power': [], 'gct': [], 'vo': [], 'vr': [], 'stride': [], 'speed': [], 'alt': []}
-        nb = int(total_gps // 100)
+        nb = int(total_distance // 100)
         alt_clean = {}
         last_alt = None
         for o in offs:
@@ -222,18 +284,20 @@ def prepare(base, race_mode=False):
                 w = [yy for _, yy in alt_pts[max(0, i - 2):i + 3]]
                 sm.append((x, sum(w) / len(w)))
             step = 250
-            xs = [x for x, _ in sm]
-            for target in range(0, int(total_gps) + 1, step):
+            for target in range(0, int(total_distance) + 1, step):
                 cand = min(sm, key=lambda p: abs(p[0] - target))
                 elev.append([target / 1000, round(cand[1], 1)])
         series.pop('alt')
 
         # coach metrics
-        half_t = float(offs[-1]) / 2
+        half_t = finish / 2
         dist = float(it['dis'])
-        elapsed = int(it['run_time'])
+        moving = int(it['run_time'])
+        elapsed = official_seconds if race_mode else round(int(it['totalTimeWithMillis']) / 1000)
+        if not race_mode and abs(finish - int(it['exerciseTimeWithMillis']) / 1000) > 5:
+            raise ValueError(f'Moving timeline differs from Zepp history for {trackid}')
         cm = {
-            'avg_pace_s_km': round(elapsed / dist * 1000),
+            'avg_pace_s_km': official_pace if race_mode else round(moving / round(dist) * 1000),
             'hr_first_half': window_avg('heart_rate_bpm', 0, half_t),
             'hr_second_half': window_avg('heart_rate_bpm', half_t, offs[-1] + 1),
             'cadence_avg': window_avg('cadence_spm', 0, offs[-1] + 1),
@@ -290,7 +354,7 @@ def prepare(base, race_mode=False):
                 if cum[o] >= target and smooth[i] is not None:
                     elev.append([round(cum[o]/1000,2),round(smooth[i],1)])
                     target += 250
-            elev.append([round(total_gps/1000,2),round(smooth[-1],1)])
+            elev.append([round(total_distance/1000,2),round(smooth[-1],1)])
 
         return {
             'kind': 'race' if race_mode else 'training',
@@ -301,7 +365,9 @@ def prepare(base, race_mode=False):
             'start_time': start.strftime('%H:%M'),
             'label': daypart_label(start, dist / 1000),
             'distance_m': round(dist),
+            'time_basis': 'elapsed' if race_mode else 'moving',
             'elapsed_s': elapsed,
+            **({} if race_mode else {'moving_s': moving}),
             'avg_hr': int(float(it['avg_heart_rate'])) if it.get('avg_heart_rate') else None,
             'max_hr': it.get('max_heart_rate'),
             'calories': round(float(it['calorie'])) if it.get('calorie') else None,
@@ -333,7 +399,8 @@ def prepare(base, race_mode=False):
     for dt, it in nov:
         if it['trackid'] == RACE_ID:
             race_entry = {'date': dt.strftime('%Y-%m-%d'), 'weekday': '月火水木金土日'[dt.weekday()],
-                          'distance_m': round(float(it['dis'])), 'elapsed_s': int(it['run_time']),
+                          'distance_m': round(float(it['dis'])), 'elapsed_s': official_seconds,
+                          'pace_s_km': official_pace,
                           'link': '/fukuoka-2026', 'name': '福岡マラソン2026',
                           'shoe': gear_name.get(it.get('gearId')),
                           'shoe_total_km': round(shoe_total_after[it['trackid']] / 1000, 1) if it['trackid'] in shoe_total_after else None,
@@ -348,7 +415,7 @@ def prepare(base, race_mode=False):
         'through': sessions[-1]['date'] if sessions else None,
         'training_sessions': len(sessions),
         'training_km': round(train_km, 2),
-        'training_time_s': sum(s['elapsed_s'] for s in sessions),
+        'training_time_s': sum(s['moving_s'] for s in sessions),
         'race': race_entry,
         'total_km_with_race': round(train_km + (race_entry['distance_m'] / 1000 if race_entry else 0), 2),
     }

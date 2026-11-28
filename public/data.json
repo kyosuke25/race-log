@@ -4,6 +4,7 @@
   "edition": "第13回",
   "date": "2026年11月8日（日）",
   "net": "3:57:48",
+  "course_km": 42.195,
   "first_half": "1:59:45",
   "second_half": "1:58:03",
   "avg_hr": 151,
@@ -25,7 +26,8 @@
   "start_time": "08:22",
   "label": "ロングラン",
   "distance_m": 42457,
-  "elapsed_s": 14269,
+  "time_basis": "elapsed",
+  "elapsed_s": 14268,
   "avg_hr": 151,
   "max_hr": 170,
   "calories": 2816,
@@ -16189,7 +16191,7 @@
    ]
   ],
   "aggregates": {
-   "avg_pace_s_km": 336,
+   "avg_pace_s_km": 338,
    "hr_first_half": 146.3,
    "hr_second_half": 155.7,
    "cadence_avg": 175.8,
@@ -16260,6 +16262,7 @@
    "edition": "第13回",
    "date": "2026年11月8日（日）",
    "net": "3:57:48",
+   "course_km": 42.195,
    "first_half": "1:59:45",
    "second_half": "1:58:03",
    "yoy5k": {

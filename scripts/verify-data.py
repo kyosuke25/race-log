@@ -2,12 +2,19 @@
 """Offline regression checks for public session schema and published headlines."""
 import argparse
 import json
+import math
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]
 race = json.loads((root / 'public/data.json').read_text())
 training = json.loads((root / 'public/training-2026-11.json').read_text())
 sessions = [race['session'], *training['sessions']]
+
+def duration(seconds):
+    return f'{seconds // 3600}:{seconds % 3600 // 60:02d}:{seconds % 60:02d}'
+
+def pace_text(seconds):
+    return f'{seconds // 60}:{seconds % 60:02d}'
 
 def html_esc(value):
     return (str(value).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
@@ -81,7 +88,7 @@ for session in sessions:
         assert (key in actual) == (key in expected), (session['slug'], key, 'presence')
         if key in expected:
             assert actual[key] == expected[key], (session['slug'], key, actual[key], expected[key])
-required = set('track_id slug date weekday start_time kind distance_m elapsed_s avg_hr max_hr calories ascent_m descent_m city shoe shoe_total_km shoe_target_km splits series elevation aggregates'.split())
+required = set('track_id slug date weekday start_time kind distance_m time_basis elapsed_s avg_hr max_hr calories ascent_m descent_m city shoe shoe_total_km shoe_target_km splits series elevation aggregates'.split())
 metrics = set('avg_pace_s_km pace_first_half_s_km pace_second_half_s_km hr_first_half hr_second_half hr_drift_pct cadence_avg cadence_first_half cadence_second_half gct_avg_ms power_avg_w vo_avg_mm vr_avg_pct stride_avg_m fastest_km slowest_km first_km_s last_km_s'.split())
 for s in sessions:
     assert required <= s.keys(), s['slug']
@@ -92,13 +99,30 @@ for s in sessions:
         assert all(x == 50 + i * 100 for i, (x, _) in enumerate(points))
     assert [sp['km'] for sp in s['splits']] == list(range(1,len(s['splits'])+1))
     assert all({'km','sec','hr'} <= sp.keys() for sp in s['splits'])
-    partial_m = s['splits'][-1]['partial_m']
-    assert 0 < partial_m <= 1000
-    gps_distance_km = len(s['splits']) - 1 + partial_m / 1000
-    # Splits and elevation share the GPS distance. Allow for rounding to meters
+    last_split_m = s['splits'][-1].get('partial_m', 1000)
+    assert 0 < last_split_m <= 1000
+    split_distance_m = (len(s['splits']) - 1) * 1000 + last_split_m
+    # Splits and elevation share a distance axis. Allow for rounding to meters
     # in splits and hundredths of a kilometer in the race elevation profile.
-    assert s['elevation'] and max(x for x, _ in s['elevation']) <= gps_distance_km + .006, s['slug']
+    assert s['elevation'] and max(x for x, _ in s['elevation']) <= split_distance_m / 1000 + .006, s['slug']
     assert s['kind'] in ('race', 'training')
+    split_seconds = sum(sp['sec'] for sp in s['splits'])
+    if s['kind'] == 'training':
+        history = histories['training'][str(s['track_id'])]
+        assert s['time_basis'] == 'moving', s['slug']
+        assert s['moving_s'] == int(history['run_time']), s['slug']
+        assert s['elapsed_s'] == round(int(history['totalTimeWithMillis']) / 1000), s['slug']
+        assert s['elapsed_s'] >= s['moving_s'] > 0, s['slug']
+        assert abs(split_seconds - int(history['exerciseTimeWithMillis']) / 1000) <= 5, (s['slug'], split_seconds)
+        assert abs(split_seconds - s['moving_s']) <= 5, (s['slug'], split_seconds)
+        assert abs(split_distance_m - s['distance_m']) <= 1, s['slug']
+        assert s['aggregates']['avg_pace_s_km'] == math.floor(s['moving_s'] * 1000 / s['distance_m'] + .5), s['slug']
+    else:
+        history = histories['race'][str(s['track_id'])]
+        assert s['time_basis'] == 'elapsed' and 'moving_s' not in s, s['slug']
+        assert duration(s['elapsed_s']) == s['race']['net'], s['slug']
+        assert abs(split_seconds - int(history['totalTimeWithMillis']) / 1000) <= 5, s['slug']
+        assert s['aggregates']['avg_pace_s_km'] == round(s['elapsed_s'] / s['race']['course_km'])
 
 def private_keys(value):
     if isinstance(value, dict):
@@ -110,7 +134,7 @@ def private_keys(value):
 private_keys(race)
 private_keys(training)
 r = race['session']
-assert (r['distance_m'],r['elapsed_s'],r['avg_hr'],r['max_hr'],r['shoe_total_km'],r['shoe_target_km']) == (42457,14269,151,170,79.6,700)
+assert (r['distance_m'],r['elapsed_s'],r['avg_hr'],r['max_hr'],r['shoe_total_km'],r['shoe_target_km']) == (42457,14268,151,170,79.6,700)
 assert len(r['aggregates']['hr_zones']) == 6
 assert abs(sum(z['seconds'] for z in r['aggregates']['hr_zones']) - r['elapsed_s']) <= 5
 assert r['race']['net'] == '3:57:48'
@@ -136,11 +160,20 @@ expected = [
     (11074, 3915, 29.5),
     (4128, 1819, 100.9),
 ]
-assert [(s['distance_m'],s['elapsed_s'],s['shoe_total_km']) for s in training['sessions']] == expected
+assert [(s['distance_m'],s['moving_s'],s['shoe_total_km']) for s in training['sessions']] == expected
 assert training['month']['training_km'] == 122.6
-assert training['month']['training_time_s'] == 51389
+assert training['month']['training_time_s'] == sum(s['moving_s'] for s in training['sessions']) == 51389
 assert training['month']['total_km_with_race'] == 165.05
 assert training['month']['race']['shoe_total_km'] == r['shoe_total_km']
+assert training['month']['race']['elapsed_s'] == r['elapsed_s']
+assert training['month']['race']['pace_s_km'] == r['aggregates']['avg_pace_s_km']
+nov27, nov28 = training['sessions'][-2:]
+assert [sp['sec'] for sp in nov28['splits'][:4]] == [442, 444, 447, 434]
+assert [nov27['splits'][i]['sec'] for i in (2, 9)] == [332, 340]
+month_html = (root / 'public/training/2026-11.html').read_text()
+assert '<th scope="col">ムービングタイム／公式ネット</th>' in month_html
+assert '<dt>練習の累計ムービングタイム</dt><dd>14:16:29</dd>' in month_html
+assert '<td>3:57:48</td><td>5:38 /km</td>' in month_html
 assert training['sessions'][-1]['track_id'] == '1795853517'
 assert [(s['slug'], s['start_time']) for s in training['sessions'][-6:]] == [
     ('2026-11-23-pm', '15:47'),
@@ -190,8 +223,21 @@ for s in sessions:
     if a.get('weather_info_raw'):
         assert a['weather_info_raw'] not in html
     if s['kind'] == 'race':
+        assert f'<dt>ネットタイム</dt><dd>{s["race"]["net"]}</dd>' in html
         assert '<dt>VO2max</dt><dd>49</dd>' in html
         assert '<dt>総歩数</dt><dd>41666 歩</dd>' in html
         assert '<dt>上限 153 bpm</dt><dd>9116 秒（' in html
+    else:
+        time = duration(s['moving_s'])
+        pace = pace_text(a['avg_pace_s_km'])
+        assert f'<dt>ムービングタイム</dt><dd>{time}</dd>' in html, s['slug']
+        assert f'<dt>平均ペース</dt><dd>{pace} /km</dd>' in html, s['slug']
+        assert '平均ペースは経過時間基準。' not in html, s['slug']
+        row = next(row for row in month_html.split('</tr>') if f'href="/training/{s["slug"]}"' in row)
+        assert f'<td>{time}</td><td>{pace} /km</td>' in row, s['slug']
+        for split in s['splits']:
+            suffix = f'（端数 {split["partial_m"]} m / {pace_text(split["sec"])}）' if 'partial_m' in split else ''
+            split_pace = pace_text(split.get('pace_s_km', split['sec']))
+            assert f'{split["km"]} km{suffix}</th><td>{split_pace}</td>' in html, (s['slug'], split['km'])
     assert html.count('<canvas ') == (7 if s['kind']=='race' else 6)
-print(f'PASS: {len(sessions)} unified sessions; 9 sensor series each; history summary values and invalid-value omission; elevation km; partial splits; all aggregates; no coordinate/private keys; published headlines; generated page shoes and charts; optional detail tiles and HR zone seconds/percentages/bars on all pages; Fukuoka VO2max 49, steps 41666, 153 bpm / 9116 seconds; raw weather omitted; training comments are menu/purpose/recap/good/next.')
+print(f'PASS: {len(sessions)} unified sessions; moving training splits and headlines, official elapsed race and monthly values; 9 sensor series each; history summary values and invalid-value omission; elevation km; partial splits; all aggregates; no coordinate/private keys; generated page shoes and charts; optional detail tiles and HR zones; raw weather omitted; training comment schema and rendering.')

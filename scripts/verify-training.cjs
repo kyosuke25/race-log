@@ -16,11 +16,11 @@ const fs=require('node:fs');
  await visit('/');await page.locator('main a[href="/training/"]').click();
  assert.equal(await page.locator('.posts li').count(),1);
  await page.locator('a[href="/training/2026-11"]').click();await ready();
- assert.deepEqual(await page.locator('.month-summary dd').allTextContents(),['6 件','36.7 km','4:04:21','79.2 km']);
- assert.equal(await page.locator('.session-table tbody tr').count(),7);
+ assert.deepEqual(await page.locator('.month-summary dd').allTextContents(),['17 件','122.6 km','14:16:29','165.1 km']);
+ assert.equal(await page.locator('.session-table tbody tr').count(),18);
  assert.equal(await page.locator('.session-table a[href="/fukuoka-2026"]').count(),1);
- assert.equal(await page.locator('.shoe-table tbody tr').count(),3);
- assert.match(await page.locator('.shoe-table').innerText(),/adidas Hyperboost\s+111.2 km\s+700 km/);
+ assert.equal(await page.locator('.shoe-table tbody tr').count(),5);
+ assert.match(await page.locator('.shoe-table').innerText(),/adidas Hyperboost\s+121.5 km\s+700 km/);
  assert.match(await page.locator(".shoe-table").innerText(),/asics Magic Speed 5\s+79.6 km\s+700 km/);
  {const c=await chart('weekly');assert.equal(c.type,'bar');assert.deepEqual(c.data[0],Object.entries(d.month.weekly_m).sort(([a],[b])=>a.localeCompare(b)).map(([,m])=>m/1000));}
  {const c=await chart('daily');assert.equal(c.data[0].length,30);assert.deepEqual(c.data[0].filter(v=>v>0),Object.entries(d.month.daily_m).sort(([a],[b])=>a.localeCompare(b)).map(([,m])=>m/1000));}
@@ -31,9 +31,10 @@ const fs=require('node:fs');
  for(const s of d.sessions){
  await page.setViewportSize({width:375,height:900});await visit('/training/'+s.slug);await ready();
  assert.equal(await page.locator('canvas').count(),6);
- assert.equal(await page.locator('.times dd').nth(2).innerText(),pace(s.elapsed_s/s.distance_m*1000));
- assert.equal(await page.locator('.gear dd').first().innerText(),s.shoe);
- assert.equal(await page.locator('.gear dd').nth(1).innerText(),`${s.shoe_total_km.toFixed(1)} km ／ ${s.shoe_target_km} km`);
+ assert.equal(await page.locator('.times dt').nth(1).innerText(),'ムービングタイム');
+ assert.equal(await page.locator('.times dd').nth(2).innerText(),pace(s.moving_s/s.distance_m*1000));
+ assert.equal(await page.locator('.gear dd').first().innerText(),s.shoe ?? '—');
+ if(s.shoe!=null) assert.equal(await page.locator('.gear dd').nth(1).innerText(),`${s.shoe_total_km.toFixed(1)} km ／ ${s.shoe_target_km} km`);
  assert.equal(await page.locator('tbody tr').count(),s.splits.length);
  for(const [i,split] of s.splits.entries())if(split.partial_m!=null){const row=await page.locator('tbody tr').nth(i).innerText();assert(row.includes(`${split.partial_m} m`));assert(row.includes('端数'));}
  assert.deepEqual(await page.locator('.manager-comments h3').allTextContents(),['Menu','Purpose','Recap','Good','Next']);
@@ -52,6 +53,6 @@ const fs=require('node:fs');
  }
  assert(!fs.existsSync('public/training/2026-11-08.html'));
  assert.deepEqual(errors,[]);
- console.log('PASS: training navigation, source month summary, 7 session/race rows, monthly bars, all 6 sessions and 36 charts, elapsed pace, partial splits, verbatim comments, responsive layout.');
+ console.log('PASS: training navigation, monthly summary and rows, monthly bars, session charts, moving pace, partial splits, verbatim comments, responsive layout.');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exit(1);});
