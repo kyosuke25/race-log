@@ -132,23 +132,25 @@ expected = [
     (4266, 1724, 91.6),
     (5193, 2162, 121.5),
     (11003, 4500, 48.5),
-    (5128, 2183, 96.7),
+    (5128, 2183, 96.8),
     (11074, 3915, 29.5),
+    (4128, 1819, 100.9),
 ]
 assert [(s['distance_m'],s['elapsed_s'],s['shoe_total_km']) for s in training['sessions']] == expected
-assert training['month']['training_km'] == 118.47
-assert training['month']['training_time_s'] == 49570
-assert training['month']['total_km_with_race'] == 160.93
+assert training['month']['training_km'] == 122.6
+assert training['month']['training_time_s'] == 51389
+assert training['month']['total_km_with_race'] == 165.05
 assert training['month']['race']['shoe_total_km'] == r['shoe_total_km']
-assert training['sessions'][-1]['track_id'] == '1795732373'
-assert [(s['slug'], s['start_time']) for s in training['sessions'][-5:]] == [
+assert training['sessions'][-1]['track_id'] == '1795853517'
+assert [(s['slug'], s['start_time']) for s in training['sessions'][-6:]] == [
     ('2026-11-23-pm', '15:47'),
     ('2026-11-24-am', '07:24'),
     ('2026-11-25-am', '07:26'),
     ('2026-11-26-am', '07:52'),
     ('2026-11-27-am', '07:32'),
+    ('2026-11-28-night', '17:11'),
 ]
-assert training['month']['training_sessions'] == 16
+assert training['month']['training_sessions'] == 17
 assert training['gear']
 detail_labels = {
     'vo2max': ('VO2max', ''), 'aerobic_te': ('有酸素TE', ''),
